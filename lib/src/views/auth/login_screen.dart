@@ -35,8 +35,8 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   // Ảnh nền (Dùng ảnh mạng hoặc asset)
                   Positioned.fill(
-                    child: Image.network(
-                      'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop', // Ảnh concert mood
+                    child: Image.asset(
+                      'images/login.png', // Ảnh concert mood
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) =>
                           Container(color: Colors.grey[900]),

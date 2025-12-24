@@ -5,7 +5,7 @@ class AppUrls {
   // Nếu dùng iOS Simulator: Dùng http://localhost:5000
 
   // Nếu dùng Điện thoại thật: Phải dùng IP LAN của máy tính (ví dụ: http://192.168.1.15:5000).
-  static const String baseUrl = 'http://localhost:5000';
+  static const String baseUrl = 'http://10.0.2.2:5000';
   // static const String baseUrl = 'http://localhost:5000';
 
   static const String login = '$baseUrl/api/auth/login';
