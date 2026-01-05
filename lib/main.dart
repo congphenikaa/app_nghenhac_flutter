@@ -1,5 +1,6 @@
-// lib/main.dart
+import 'package:app_nghenhac/app_binding.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
+import 'package:app_nghenhac/src/views/MiniPlayer.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -21,7 +22,31 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.black,
         useMaterial3: true,
       ),
+      initialBinding: AppBinding(),
       home: const SplashScreen(), // Chạy Splash trước
+      builder: (context, child) {
+        return Scaffold(
+          // child chính là màn hình hiện tại (Home, Settings, Player, v.v.)
+          // Chúng ta dùng Stack để đặt MiniPlayer đè lên child
+          body: Stack(
+            children: [
+              // Lớp 1: Màn hình ứng dụng
+              // Cần bao bọc trong một Widget để xử lý padding dưới đáy
+              // (tránh bị MiniPlayer che mất nội dung cuối list)
+              Positioned.fill(child: child ?? const SizedBox()),
+
+              // Lớp 2: Mini Player
+              const Positioned(
+                bottom: 75,
+                left: 0,
+                right: 0,
+                // MiniPlayer sẽ tự ẩn hiện nhờ logic Obx bên trong nó
+                child: MiniPlayer(),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

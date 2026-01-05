@@ -10,6 +10,8 @@ class PlayerController extends GetxController {
   var progress = Duration.zero.obs;
   var buffered = Duration.zero.obs;
   var totalDuration = Duration.zero.obs;
+  var miniPlayerHeight = 0.0.obs;
+  var isPlayerScreenOpen = false.obs;
 
   // Lưu bài hát đang phát
   var currentSong = Rxn<SongModel>();
@@ -54,6 +56,8 @@ class PlayerController extends GetxController {
 
       // Bắt đầu phát
       audioPlayer.play();
+
+      updateMiniPlayerVisibility();
     } catch (e) {
       print("Lỗi phát nhạc: $e");
     }
@@ -71,6 +75,14 @@ class PlayerController extends GetxController {
   // Hàm tua nhạc (Seek)
   void seek(Duration position) {
     audioPlayer.seek(position);
+  }
+
+  void updateMiniPlayerVisibility() {
+    if (currentSong.value != null) {
+      miniPlayerHeight.value = 80.0; // Chiều cao của MiniPlayer + margin
+    } else {
+      miniPlayerHeight.value = 0.0;
+    }
   }
 
   @override

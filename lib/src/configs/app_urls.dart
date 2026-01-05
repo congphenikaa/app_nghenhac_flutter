@@ -10,5 +10,21 @@ class AppUrls {
 
   static const String login = '$baseUrl/api/auth/login';
   static const String register = '$baseUrl/api/auth/register';
+
   static const String listSong = '$baseUrl/api/song/list';
+  static const String listCategory = '$baseUrl/api/category/list';
+
+  static const String songByCategory = '$baseUrl/api/song/category';
+
+  static const String songByAlbum = '$baseUrl/api/song/album';
+  static const String searchSong = '$baseUrl/api/song/search';
+
+  static const String listAlbum = '$baseUrl/api/album/list';
+  static const String listArtist = '$baseUrl/api/artist/list';
+
+  static const String playlistCreate = '$baseUrl/api/playlist/create';
+  static const String playlistUserList = '$baseUrl/api/playlist/user-list';
+  static const String playlistAddSong = '$baseUrl/api/playlist/add-song';
+  static const String playlistRemove = '$baseUrl/api/playlist/remove';
+  static const String playlistDetail = '$baseUrl/api/playlist/detail';
 }
