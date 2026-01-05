@@ -37,9 +37,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   // Gọi API lấy chi tiết playlist
   void fetchPlaylistDetails() async {
     try {
-      final url =
-          '${AppUrls.playlistDetail}/${widget.playlistId}'; // Cần thêm playlistDetail vào AppUrls: static const String playlistDetail = '$baseUrl/api/playlist/detail';
-      // Nếu chưa có trong AppUrls, hãy thêm vào file app_urls.dart
+      final url = '${AppUrls.playlistDetail}/${widget.playlistId}';
 
       final response = await http.get(Uri.parse(url));
 

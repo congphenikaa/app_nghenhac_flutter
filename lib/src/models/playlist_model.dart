@@ -24,11 +24,18 @@ class PlaylistModel {
       }).toList();
     }
 
+    String img = json['image'] ?? '';
+    // Nếu rỗng, gán luôn ảnh mặc định tại đây
+    if (img.isEmpty) {
+      img =
+          "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop";
+    }
+
     return PlaylistModel(
       id: json['_id'] ?? '',
       name: json['name'] ?? 'Unknown Playlist',
       description: json['description'] ?? '',
-      imageUrl: json['image'] ?? '',
+      imageUrl: img,
       creatorId: json['creator'] ?? '',
       songIds: songs,
     );

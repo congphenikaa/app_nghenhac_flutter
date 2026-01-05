@@ -5,9 +5,55 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../view_models/home_controller.dart';
-import '../models/playlist_model.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
+
+class PlaylistModel {
+  final int id;
+  final String name;
+  final String imageUrl;
+
+  PlaylistModel({required this.id, required this.name, required this.imageUrl});
+}
+
+final List<PlaylistModel> kMockPlaylists = [
+  PlaylistModel(
+    id: 1,
+    name: "Liked Songs",
+    imageUrl:
+        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
+  ),
+  PlaylistModel(
+    id: 2,
+    name: "On Repeat",
+    imageUrl:
+        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
+  ),
+  PlaylistModel(
+    id: 3,
+    name: "Daily Mix 1",
+    imageUrl:
+        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80",
+  ),
+  PlaylistModel(
+    id: 4,
+    name: "Discover Weekly",
+    imageUrl:
+        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
+  ),
+  PlaylistModel(
+    id: 5,
+    name: "Release Radar",
+    imageUrl:
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80",
+  ),
+  PlaylistModel(
+    id: 6,
+    name: "Rock Classics",
+    imageUrl:
+        "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&q=80",
+  ),
+];
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -159,7 +205,7 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. QUICK ACCESS
-          _buildQuickAccessGrid(controller.playlists),
+          _buildQuickAccessGrid(kMockPlaylists),
 
           const SizedBox(height: 32),
 
@@ -177,7 +223,7 @@ class HomeScreen extends StatelessWidget {
 
           // 4. TOP MIXES
           _buildSectionTitle("Your Top Mixes"),
-          _buildTopMixes(controller.playlists),
+          _buildTopMixes(kMockPlaylists),
 
           const SizedBox(height: 32),
 
