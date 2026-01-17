@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:app_nghenhac/src/configs/app_urls.dart';
 import 'package:app_nghenhac/src/models/song_model.dart';
+import 'package:app_nghenhac/src/view_models/library_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,6 +28,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   var songs = <SongModel>[];
   var isLoading = true;
   final PlayerController playerController = Get.find<PlayerController>();
+  // Tìm LibraryController để gọi hàm xóa
+  final LibraryController libraryController = Get.find<LibraryController>();
 
   @override
   void initState() {
@@ -46,16 +49,107 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         if (data['success'] == true) {
           final playlistData = data['playlist'];
           final List<dynamic> list = playlistData['songs'] ?? [];
-          setState(() {
-            songs = list.map((e) => SongModel.fromJson(e)).toList();
-            isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              songs = list.map((e) => SongModel.fromJson(e)).toList();
+              isLoading = false;
+            });
+          }
         }
       }
     } catch (e) {
       print("Lỗi tải playlist: $e");
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  // Hàm xử lý xóa bài hát
+  void _removeSong(String songId) async {
+    // Gọi hàm xóa trong controller
+    bool success = await libraryController.removeSongFromPlaylist(
+      widget.playlistId,
+      songId,
+    );
+
+    if (success) {
+      // Nếu thành công, cập nhật UI ngay lập tức
+      setState(() {
+        songs.removeWhere((s) => s.id == songId);
+      });
+      Get.snackbar("Thành công", "Đã xóa bài hát khỏi playlist");
+    }
+  }
+
+  // Hiển thị BottomSheet tùy chọn
+  void _showOptions(BuildContext context, SongModel song) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: CachedNetworkImage(
+                    imageUrl: song.imageUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: Colors.grey[800]),
+                  ),
+                ),
+                title: Text(
+                  song.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  song.description,
+                  style: const TextStyle(color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Divider(color: Colors.grey),
+              ListTile(
+                leading: const Icon(
+                  Icons.remove_circle_outline,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  "Xóa khỏi Playlist này",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context); // Đóng modal
+                  _removeSong(song.id); // Gọi hàm xóa
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -105,23 +199,24 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               ),
             ),
           ),
-
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              if (isLoading)
+              if (isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF30e87a)),
                 );
-              if (songs.isEmpty)
+              }
+              if (songs.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(20),
                     child: Text(
-                      "No songs added yet",
+                      "Chưa có bài hát nào",
                       style: TextStyle(color: Colors.grey),
                     ),
                   ),
                 );
+              }
 
               final song = songs[index];
               return ListTile(
@@ -135,12 +230,19 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: Text(
                   song.description,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                trailing: const Icon(Icons.more_vert, color: Colors.grey),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  onPressed: () => _showOptions(context, song),
+                ),
                 onTap: () => playerController.playSong(song),
               );
             }, childCount: isLoading ? 1 : (songs.isEmpty ? 1 : songs.length)),

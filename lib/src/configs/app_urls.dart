@@ -27,4 +27,6 @@ class AppUrls {
   static const String playlistAddSong = '$baseUrl/api/playlist/add-song';
   static const String playlistRemove = '$baseUrl/api/playlist/remove';
   static const String playlistDetail = '$baseUrl/api/playlist/detail';
+
+  static const String playlistRemoveSong = '$baseUrl/api/playlist/remove-song';
 }

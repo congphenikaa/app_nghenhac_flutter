@@ -4,50 +4,60 @@ import 'package:app_nghenhac/src/views/album_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+// Import Controller và Model thực tế
 import '../view_models/home_controller.dart';
+import '../view_models/library_controller.dart'; // Import LibraryController
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 
-class PlaylistModel {
+// --- ĐỔI TÊN CLASS NỘI BỘ THÀNH HomeMockPlaylist ĐỂ TRÁNH XUNG ĐỘT ---
+// Đã đổi tên class này để tránh xung đột cache với PlaylistModel cũ
+class HomeMockPlaylist {
   final int id;
   final String name;
   final String imageUrl;
 
-  PlaylistModel({required this.id, required this.name, required this.imageUrl});
+  HomeMockPlaylist({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+  });
 }
 
-final List<PlaylistModel> kMockPlaylists = [
-  PlaylistModel(
+// Cập nhật danh sách Mock Data theo class mới
+final List<HomeMockPlaylist> kMockPlaylists = [
+  HomeMockPlaylist(
     id: 1,
     name: "Liked Songs",
     imageUrl:
         "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
   ),
-  PlaylistModel(
+  HomeMockPlaylist(
     id: 2,
     name: "On Repeat",
     imageUrl:
         "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
   ),
-  PlaylistModel(
+  HomeMockPlaylist(
     id: 3,
     name: "Daily Mix 1",
     imageUrl:
         "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80",
   ),
-  PlaylistModel(
+  HomeMockPlaylist(
     id: 4,
     name: "Discover Weekly",
     imageUrl:
         "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
   ),
-  PlaylistModel(
+  HomeMockPlaylist(
     id: 5,
     name: "Release Radar",
     imageUrl:
         "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80",
   ),
-  PlaylistModel(
+  HomeMockPlaylist(
     id: 6,
     name: "Rock Classics",
     imageUrl:
@@ -60,33 +70,26 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Put Controller (Chỉ put nếu chưa có, dùng Get.put sẽ tự kiểm tra)
+    // Put Controller
     final HomeController controller = Get.put(HomeController());
     final PlayerController playerController = Get.find<PlayerController>();
     final AuthController authController = Get.put(AuthController());
 
-    // --- SỬA ĐỔI QUAN TRỌNG: BỎ SCAFFOLD ---
-    // Chỉ trả về SafeArea chứa nội dung.
-    // Khung app (Scaffold) đã được MainWrapper lo.
+    // --- THÊM: Put LibraryController để dùng chức năng Playlist ---
+    final LibraryController libraryController = Get.put(LibraryController());
+
+    // Chỉ trả về SafeArea, vì Scaffold đã có ở MainWrapper
     return SafeArea(
       child: Container(
-        color: Colors.black, // Đảm bảo nền đen đồng nhất
+        color: Colors.black,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-
-            // Header
             _buildHeader(authController),
-
             const SizedBox(height: 24),
-
-            // Filter Chips
             _buildFilterChips(controller),
-
             const SizedBox(height: 16),
-
-            // Body (Dashboard hoặc List)
             Expanded(
               child: Obx(() {
                 if (controller.isSongLoading.value) {
@@ -96,9 +99,21 @@ class HomeScreen extends StatelessWidget {
                 }
 
                 if (controller.selectedCategoryIndex.value == 0) {
-                  return _buildDashboardBody(controller, playerController);
+                  // Truyền thêm libraryController và context vào dashboard
+                  return _buildDashboardBody(
+                    controller,
+                    playerController,
+                    libraryController,
+                    context,
+                  );
                 } else {
-                  return _buildSongListOnly(controller, playerController);
+                  // Truyền thêm libraryController và context vào list
+                  return _buildSongListOnly(
+                    controller,
+                    playerController,
+                    libraryController,
+                    context,
+                  );
                 }
               }),
             ),
@@ -120,7 +135,6 @@ class HomeScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.grey,
-                // Thay thế bằng ảnh đại diện thực tế nếu có
                 backgroundImage: NetworkImage(
                   'https://i.pravatar.cc/150?img=11',
                 ),
@@ -194,48 +208,44 @@ class HomeScreen extends StatelessWidget {
   Widget _buildDashboardBody(
     HomeController controller,
     PlayerController playerController,
+    LibraryController libraryController, // Nhận thêm tham số
+    BuildContext context,
   ) {
     return SingleChildScrollView(
-      // Padding dưới để nội dung không bị che bởi MiniPlayer
-      // Lưu ý: MainWrapper đã có BottomNav, padding này chỉ để tránh MiniPlayer khi nó hiện lên
       padding: EdgeInsets.only(
         bottom: playerController.currentSong.value != null ? 100 : 20,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. QUICK ACCESS
+          // Dùng HomeMockPlaylist
           _buildQuickAccessGrid(kMockPlaylists),
 
           const SizedBox(height: 32),
-
-          // 2. NEW RELEASES
           _buildSectionTitle("New Releases"),
           _buildNewReleasesList(controller.albums),
 
           const SizedBox(height: 32),
-
-          // 3. POPULAR ARTISTS
           _buildSectionTitle("Popular Artists"),
           _buildPopularArtists(controller.artists),
 
           const SizedBox(height: 32),
-
-          // 4. TOP MIXES
           _buildSectionTitle("Your Top Mixes"),
           _buildTopMixes(kMockPlaylists),
 
           const SizedBox(height: 32),
-
-          // 5. TRACKS FOR YOU
           _buildSectionTitle("Tracks For You"),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: controller.songList.length,
-            itemBuilder: (context, index) =>
-                _buildSongItem(controller.songList[index], playerController),
+            itemBuilder: (context, index) => _buildSongItem(
+              context,
+              controller.songList[index],
+              playerController,
+              libraryController,
+            ),
           ),
         ],
       ),
@@ -256,8 +266,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 1. Quick Access Grid
-  Widget _buildQuickAccessGrid(List<PlaylistModel> playlists) {
+  // 1. Quick Access Grid (Dùng HomeMockPlaylist)
+  Widget _buildQuickAccessGrid(List<HomeMockPlaylist> playlists) {
     if (playlists.isEmpty) return const SizedBox();
     final displayList = playlists.take(6).toList();
 
@@ -333,9 +343,6 @@ class HomeScreen extends StatelessWidget {
           final album = albums.reversed.toList()[index];
           return GestureDetector(
             onTap: () {
-              // --- SỬA ĐỔI QUAN TRỌNG ---
-              // Dùng Navigator.of(context).push thay vì Get.to
-              // Để đẩy màn hình vào Navigator con của tab Home
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => AlbumDetailScreen(album: album),
@@ -440,8 +447,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 4. Top Mixes
-  Widget _buildTopMixes(List<PlaylistModel> playlists) {
+  // 4. Top Mixes (Dùng HomeMockPlaylist)
+  Widget _buildTopMixes(List<HomeMockPlaylist> playlists) {
     if (playlists.isEmpty) return const SizedBox();
     final displayList = playlists.toList();
     final gradients = [
@@ -517,6 +524,8 @@ class HomeScreen extends StatelessWidget {
   Widget _buildSongListOnly(
     HomeController controller,
     PlayerController playerController,
+    LibraryController libraryController,
+    BuildContext context,
   ) {
     if (controller.songList.isEmpty) {
       return const Center(
@@ -533,12 +542,129 @@ class HomeScreen extends StatelessWidget {
         right: 16,
       ),
       itemCount: controller.songList.length,
-      itemBuilder: (context, index) =>
-          _buildSongItem(controller.songList[index], playerController),
+      itemBuilder: (context, index) => _buildSongItem(
+        context,
+        controller.songList[index],
+        playerController,
+        libraryController,
+      ),
     );
   }
 
-  Widget _buildSongItem(dynamic song, PlayerController playerController) {
+  // --- HÀM MỚI: HIỂN THỊ DANH SÁCH PLAYLIST ĐỂ CHỌN ---
+  void _showAddToPlaylistBottomSheet(
+    BuildContext context,
+    dynamic song,
+    LibraryController libraryController,
+  ) {
+    // Đảm bảo load playlist mới nhất khi mở sheet
+    if (libraryController.myPlaylists.isEmpty) {
+      libraryController.fetchMyPlaylists();
+    }
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Text(
+              "Thêm vào Playlist",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Obx(() {
+                if (libraryController.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (libraryController.myPlaylists.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "Bạn chưa có Playlist nào.\nHãy tạo Playlist mới trong Thư viện.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: libraryController.myPlaylists.length,
+                  itemBuilder: (context, index) {
+                    final playlist = libraryController.myPlaylists[index];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: CachedNetworkImage(
+                          imageUrl: playlist.imageUrl,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              Container(color: Colors.grey[800]),
+                        ),
+                      ),
+                      title: Text(
+                        playlist.name,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        "${playlist.songIds.length} bài hát",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.grey,
+                      ),
+                      onTap: () {
+                        // Gọi hàm thêm bài hát trong LibraryController
+                        // 'song' ở đây là dynamic, bạn lấy id của nó
+                        libraryController.addSongToPlaylist(
+                          playlist.id,
+                          song.id,
+                        );
+                      },
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true, // Cho phép bottom sheet kéo cao lên
+    );
+  }
+
+  Widget _buildSongItem(
+    BuildContext context,
+    dynamic song,
+    PlayerController playerController,
+    LibraryController
+    libraryController, // Nhận thêm controller để xử lý sự kiện
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -571,7 +697,14 @@ class HomeScreen extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: const Icon(Icons.more_vert, color: Colors.grey),
+
+        // --- NÚT 3 CHẤM ĐÃ CÓ CHỨC NĂNG ---
+        trailing: IconButton(
+          icon: const Icon(Icons.more_vert, color: Colors.grey),
+          onPressed: () =>
+              _showAddToPlaylistBottomSheet(context, song, libraryController),
+        ),
+
         onTap: () => playerController.playSong(song),
       ),
     );
