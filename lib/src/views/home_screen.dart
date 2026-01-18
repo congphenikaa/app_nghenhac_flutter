@@ -1,13 +1,12 @@
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/views/album_detail_screen.dart';
+import 'package:app_nghenhac/src/views/artist_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-// Import Controller và Model thực tế
 import '../view_models/home_controller.dart';
-import '../view_models/library_controller.dart'; // Import LibraryController
+import '../view_models/library_controller.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 
@@ -408,39 +407,51 @@ class HomeScreen extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final artist = artists[index];
-          return Column(
-            children: [
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    image: CachedNetworkImageProvider(artist.imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 5,
+          // --- THÊM PHẦN GESTURE DETECTOR ---
+          return GestureDetector(
+            onTap: () {
+              // Chuyển sang trang chi tiết Artist
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ArtistDetailScreen(artist: artist),
+                ),
+              );
+            },
+            child: Column(
+              children: [
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      image: CachedNetworkImageProvider(artist.imageUrl),
+                      fit: BoxFit.cover,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: 110,
-                child: Text(
-                  artist.name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 5,
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 110,
+                  child: Text(
+                    artist.name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),

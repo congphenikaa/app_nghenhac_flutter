@@ -1,6 +1,7 @@
 import 'package:app_nghenhac/src/views/MiniPlayer.dart';
 import 'package:app_nghenhac/src/views/home_screen.dart';
 import 'package:app_nghenhac/src/views/library_screen.dart';
+import 'package:app_nghenhac/src/views/premium_screen.dart';
 import 'package:app_nghenhac/src/views/search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -116,12 +117,7 @@ class _MainWrapperState extends State<MainWrapper> {
                 case 2:
                   return const LibraryScreen();
                 case 3:
-                  return const Center(
-                    child: Text(
-                      "Premium",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  );
+                  return const PremiumScreen();
                 default:
                   return const HomeScreen();
               }

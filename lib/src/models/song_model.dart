@@ -7,6 +7,7 @@ class SongModel {
   String audioUrl;
   String imageUrl;
   int duration;
+  int plays;
 
   SongModel({
     required this.id,
@@ -17,6 +18,7 @@ class SongModel {
     required this.audioUrl,
     required this.imageUrl,
     required this.duration,
+    required this.plays,
   });
 
   factory SongModel.fromJson(Map<String, dynamic> json) {
@@ -26,13 +28,11 @@ class SongModel {
       description: json['description'] ?? '',
 
       // --- XỬ LÝ ALBUM ---
-      // Kiểm tra nếu album là một Object (Map) thì lấy tên, nếu không thì lấy chuỗi hoặc mặc định
       album: (json['album'] is Map)
           ? (json['album']['title'] ?? json['album']['name'] ?? "Album")
           : (json['album']?.toString() ?? "Single"),
 
       // --- XỬ LÝ ARTIST ---
-      // Backend có populate artist, nên cũng phải check Map tương tự
       artist: (json['artist'] is Map)
           ? (json['artist']['name'] ??
                 json['artist']['title'] ??
@@ -42,9 +42,15 @@ class SongModel {
       audioUrl: json['audioUrl'] ?? '',
       imageUrl: json['imageUrl'] ?? '',
 
+      // --- XỬ LÝ DURATION ---
       duration: json['duration'] is int
           ? json['duration']
           : int.tryParse(json['duration'].toString()) ?? 0,
+
+      // --- XỬ LÝ PLAYS ---
+      plays: json['plays'] is int
+          ? json['plays']
+          : int.tryParse(json['plays'].toString()) ?? 0,
     );
   }
 }
