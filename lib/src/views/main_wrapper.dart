@@ -111,7 +111,7 @@ class _MainWrapperState extends State<MainWrapper> {
             builder: (context) {
               switch (index) {
                 case 0:
-                  return const HomeScreen();
+                  return HomeScreen();
                 case 1:
                   return const SearchScreen();
                 case 2:
@@ -119,7 +119,7 @@ class _MainWrapperState extends State<MainWrapper> {
                 case 3:
                   return const PremiumScreen();
                 default:
-                  return const HomeScreen();
+                  return HomeScreen();
               }
             },
           );

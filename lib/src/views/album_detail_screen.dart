@@ -39,14 +39,21 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
         if (data['success'] == true) {
           final List<dynamic> list = data['songs'] ?? [];
           setState(() {
-            songs = list.map((e) => SongModel.fromJson(e)).toList();
+            // Gán tên artist từ thông tin Album vào bài hát để hiển thị đúng tên
+            songs = list.map((e) {
+              final song = SongModel.fromJson(e);
+              // Gán đè tên artist từ widget.album.artistName
+              // Vì bài hát trong album này chắc chắn thuộc về artist của album
+              song.artist = widget.album.artistName;
+              return song;
+            }).toList();
             isLoading = false;
           });
         }
       }
     } catch (e) {
       print("Lỗi tải bài hát album: $e");
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -71,6 +78,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                   CachedNetworkImage(
                     imageUrl: widget.album.imageUrl,
                     fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: Colors.grey[900]),
+                    errorWidget: (_, __, ___) =>
+                        Container(color: Colors.grey[900]),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -123,17 +133,19 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
           // Danh sách bài hát thật
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              if (isLoading)
+              if (isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF30e87a)),
                 );
-              if (songs.isEmpty)
+              }
+              if (songs.isEmpty) {
                 return const Center(
                   child: Text(
                     "No songs in this album",
                     style: TextStyle(color: Colors.grey),
                   ),
                 );
+              }
 
               final song = songs[index];
               return ListTile(
@@ -149,7 +161,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  song.description,
+                  song.description.isNotEmpty ? song.description : song.artist,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 trailing: const Icon(Icons.more_vert, color: Colors.grey),

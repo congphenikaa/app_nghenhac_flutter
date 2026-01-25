@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'package:app_nghenhac/src/configs/app_urls.dart'; // Đảm bảo bạn đã có AppUrls
+import 'package:app_nghenhac/src/configs/app_urls.dart';
 import 'package:app_nghenhac/src/models/artist_model.dart';
-import 'package:app_nghenhac/src/models/song_model.dart'; // Import SongModel
-import 'package:app_nghenhac/src/models/album_model.dart'; // Import AlbumModel (Cần tạo file này nếu chưa có)
+import 'package:app_nghenhac/src/models/song_model.dart';
+import 'package:app_nghenhac/src/models/album_model.dart';
+import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
-import 'package:app_nghenhac/src/views/album_detail_screen.dart'; // Import màn hình chi tiết Album
+import 'package:app_nghenhac/src/views/album_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -24,20 +25,25 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
   List<SongModel> topSongs = [];
   List<AlbumModel> albums = [];
   bool isLoading = true;
+
+  // Sử dụng RxInt để quản lý số lượng follow (Reactive)
+  final RxInt followersCount = 0.obs;
+
   final PlayerController playerController = Get.find<PlayerController>();
+  final AuthController authController = Get.find<AuthController>();
 
   @override
   void initState() {
     super.initState();
+    // Khởi tạo giá trị ban đầu từ widget truyền vào
+    followersCount.value = widget.artist.followersCount;
     fetchArtistDetails();
   }
 
   // Gọi API lấy thông tin chi tiết (Songs, Albums)
   Future<void> fetchArtistDetails() async {
     try {
-      // Giả sử đường dẫn API là: /api/artist/detail/:id
       final url = '${AppUrls.baseUrl}/api/artist/detail/${widget.artist.id}';
-
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -46,18 +52,43 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
           final List<dynamic> songList = data['topSongs'] ?? [];
           final List<dynamic> albumList = data['albums'] ?? [];
 
+          // Cập nhật số lượng follow mới nhất từ server nếu có
+          if (data['artist'] != null &&
+              data['artist']['followersCount'] != null) {
+            followersCount.value = data['artist']['followersCount'];
+          }
+
           if (mounted) {
             setState(() {
-              topSongs = songList.map((e) => SongModel.fromJson(e)).toList();
-              // Lưu ý: Cần đảm bảo AlbumModel.fromJson đã được định nghĩa đúng
-              albums = albumList.map((e) => AlbumModel.fromJson(e)).toList();
+              // --- FIX LỖI HIỂN THỊ ID THAY VÌ TÊN ---
+              // Vì ta đang ở trang của Artist này, ta biết chắc chắn tên của họ.
+              // Ta sẽ gán đè tên Artist vào các bài hát và album lấy về.
+
+              topSongs = songList.map((e) {
+                final song = SongModel.fromJson(e);
+                song.artist =
+                    widget.artist.name; // Gán tên thật thay vì dùng ID từ API
+                return song;
+              }).toList();
+
+              albums = albumList.map((e) {
+                final album = AlbumModel.fromJson(e);
+                // Tạo bản sao AlbumModel nhưng thay thế artistName bằng tên thật
+                return AlbumModel(
+                  id: album.id,
+                  title: album.title,
+                  description: album.description,
+                  imageUrl: album.imageUrl,
+                  artistName: widget.artist.name, // Gán tên thật
+                );
+              }).toList();
+
               isLoading = false;
             });
           }
         }
       }
     } catch (e) {
-      print("Error fetching artist detail: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -136,20 +167,22 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
             ),
           ),
 
-          // 2. Nội dung chi tiết (Info, Bio, Albums)
+          // 2. Nội dung chi tiết
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Followers
-                  Text(
-                    _formatFollowers(widget.artist.followersCount),
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  // Followers (Sử dụng Obx để cập nhật số lượng)
+                  Obx(
+                    () => Text(
+                      _formatFollowers(followersCount.value),
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -160,7 +193,6 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                       FloatingActionButton(
                         onPressed: () {
                           if (topSongs.isNotEmpty) {
-                            // Phát bài đầu tiên trong danh sách top songs
                             playerController.playSong(topSongs[0]);
                           } else {
                             Get.snackbar(
@@ -177,19 +209,53 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      OutlinedButton(
-                        onPressed: () {},
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+
+                      // Nút Follow
+                      Obx(() {
+                        // Kiểm tra trạng thái follow từ AuthController
+                        final isFollowing =
+                            authController.currentUser.value?.followedArtistIds
+                                .contains(widget.artist.id) ??
+                            false;
+
+                        return OutlinedButton(
+                          onPressed: () {
+                            // 1. Cập nhật UI số lượng ngay lập tức (Optimistic Update)
+                            if (isFollowing) {
+                              if (followersCount.value > 0) {
+                                followersCount.value--;
+                              }
+                            } else {
+                              followersCount.value++;
+                            }
+
+                            // 2. Gọi hàm logic trong AuthController
+                            authController.toggleFollowArtist(widget.artist.id);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            side: BorderSide(
+                              color: isFollowing
+                                  ? const Color(0xFF30e87a)
+                                  : Colors.white,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
-                        ),
-                        child: const Text(
-                          "Follow",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
+                          child: Text(
+                            isFollowing ? "Following" : "Follow",
+                            style: TextStyle(
+                              color: isFollowing
+                                  ? const Color(0xFF30e87a)
+                                  : Colors.white,
+                              fontWeight: isFollowing
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }),
                       const Spacer(),
                       IconButton(
                         onPressed: () {},
@@ -199,7 +265,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Bio
+                  // Biography
                   const Text(
                     "Biography",
                     style: TextStyle(
@@ -218,12 +284,12 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                       fontSize: 14,
                       height: 1.5,
                     ),
-                    maxLines: 4, // Giới hạn dòng nếu bio quá dài
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 32),
 
-                  // --- ALBUMS SECTION ---
+                  // Albums Section
                   if (albums.isNotEmpty) ...[
                     const Text(
                       "Popular Albums",
@@ -235,7 +301,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
-                      height: 180, // Chiều cao cho list album ngang
+                      height: 180,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: albums.length,
@@ -244,7 +310,6 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                           final album = albums[index];
                           return GestureDetector(
                             onTap: () {
-                              // Chuyển sang màn hình chi tiết Album
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -259,8 +324,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: CachedNetworkImage(
-                                    imageUrl: album
-                                        .imageUrl, // Đảm bảo model Album có field imageUrl
+                                    imageUrl: album.imageUrl,
                                     width: 120,
                                     height: 120,
                                     fit: BoxFit.cover,
@@ -289,17 +353,6 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                SizedBox(
-                                  width: 120,
-                                  child: Text(
-                                    // Hiển thị năm phát hành nếu có
-                                    "Album",
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                           );
@@ -309,7 +362,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     const SizedBox(height: 32),
                   ],
 
-                  // Popular Releases Title (Songs)
+                  // Popular Songs Title
                   if (topSongs.isNotEmpty)
                     const Text(
                       "Popular Songs",
@@ -325,7 +378,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
             ),
           ),
 
-          // 3. Danh sách bài hát (SliverList)
+          // 3. Danh sách bài hát
           isLoading
               ? const SliverToBoxAdapter(
                   child: Center(

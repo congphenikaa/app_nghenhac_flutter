@@ -1,3 +1,4 @@
+import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ class PlayerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PlayerController controller = Get.find<PlayerController>();
+    final AuthController authController = Get.find<AuthController>();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -84,9 +86,17 @@ class PlayerScreen extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // 2. THÔNG TIN BÀI HÁT (Obx đúng vì lắng nghe currentSong.value)
-            Obx(
-              () => Row(
+            // 2. THÔNG TIN BÀI HÁT & NÚT TIM (SỬA PHẦN NÀY)
+            Obx(() {
+              final currentSong = controller.currentSong.value;
+              // Check xem bài hát hiện tại có trong list liked của user không
+              final isLiked =
+                  authController.currentUser.value?.likedSongIds.contains(
+                    currentSong?.id,
+                  ) ??
+                  false;
+
+              return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
@@ -94,7 +104,7 @@ class PlayerScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          controller.currentSong.value?.title ?? "Unknown",
+                          currentSong?.title ?? "Unknown",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
@@ -105,8 +115,7 @@ class PlayerScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          controller.currentSong.value?.artist ??
-                              "Unknown Artist",
+                          currentSong?.artist ?? "Unknown Artist",
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 16,
@@ -117,18 +126,22 @@ class PlayerScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // NÚT TIM CÓ CHỨC NĂNG
                   IconButton(
-                    icon: const Icon(
-                      Icons.favorite_border,
-                      color: Colors.white,
+                    icon: Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: isLiked ? const Color(0xFF30e87a) : Colors.white,
+                      size: 28,
                     ),
                     onPressed: () {
-                      // TODO: Add to favorites
+                      if (currentSong != null) {
+                        authController.toggleLikeSong(currentSong.id);
+                      }
                     },
                   ),
                 ],
-              ),
-            ),
+              );
+            }),
 
             const SizedBox(height: 20),
 

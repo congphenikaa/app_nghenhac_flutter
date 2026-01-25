@@ -2,6 +2,7 @@ import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/views/album_detail_screen.dart';
 import 'package:app_nghenhac/src/views/artist_detail_screen.dart';
+import 'package:app_nghenhac/src/views/profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,8 +11,7 @@ import '../view_models/library_controller.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 
-// --- ĐỔI TÊN CLASS NỘI BỘ THÀNH HomeMockPlaylist ĐỂ TRÁNH XUNG ĐỘT ---
-// Đã đổi tên class này để tránh xung đột cache với PlaylistModel cũ
+// --- CLASS MOCK DATA (GIỮ NGUYÊN) ---
 class HomeMockPlaylist {
   final int id;
   final String name;
@@ -24,7 +24,7 @@ class HomeMockPlaylist {
   });
 }
 
-// Cập nhật danh sách Mock Data theo class mới
+// Danh sách Mock Data (GIỮ NGUYÊN)
 final List<HomeMockPlaylist> kMockPlaylists = [
   HomeMockPlaylist(
     id: 1,
@@ -65,100 +65,243 @@ final List<HomeMockPlaylist> kMockPlaylists = [
 ];
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  // 1. Tạo GlobalKey để điều khiển Drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Put Controller
     final HomeController controller = Get.put(HomeController());
     final PlayerController playerController = Get.find<PlayerController>();
     final AuthController authController = Get.put(AuthController());
-
-    // --- THÊM: Put LibraryController để dùng chức năng Playlist ---
     final LibraryController libraryController = Get.put(LibraryController());
 
-    // Chỉ trả về SafeArea, vì Scaffold đã có ở MainWrapper
-    return SafeArea(
-      child: Container(
-        color: Colors.black,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            _buildHeader(authController),
-            const SizedBox(height: 24),
-            _buildFilterChips(controller),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Obx(() {
-                if (controller.isSongLoading.value) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF30e87a)),
-                  );
-                }
+    // 2. Thay SafeArea bằng Scaffold để dùng Drawer
+    return Scaffold(
+      key: _scaffoldKey, // Gắn key
+      backgroundColor: Colors.black,
 
-                if (controller.selectedCategoryIndex.value == 0) {
-                  // Truyền thêm libraryController và context vào dashboard
-                  return _buildDashboardBody(
-                    controller,
-                    playerController,
-                    libraryController,
-                    context,
-                  );
-                } else {
-                  // Truyền thêm libraryController và context vào list
-                  return _buildSongListOnly(
-                    controller,
-                    playerController,
-                    libraryController,
-                    context,
-                  );
-                }
+      // 3. THÊM DRAWER VÀO ĐÂY
+      drawer: _buildDrawer(context, authController),
+
+      // Bọc nội dung cũ trong SafeArea của Scaffold body
+      body: SafeArea(
+        child: Container(
+          color: Colors.black,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              // 4. Truyền callback mở drawer vào Header
+              _buildHeader(authController, () {
+                _scaffoldKey.currentState?.openDrawer();
               }),
-            ),
-          ],
+
+              const SizedBox(height: 24),
+              _buildFilterChips(controller),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Obx(() {
+                  if (controller.isSongLoading.value) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF30e87a),
+                      ),
+                    );
+                  }
+
+                  if (controller.selectedCategoryIndex.value == 0) {
+                    return _buildDashboardBody(
+                      controller,
+                      playerController,
+                      libraryController,
+                      context,
+                    );
+                  } else {
+                    return _buildSongListOnly(
+                      controller,
+                      playerController,
+                      libraryController,
+                      context,
+                    );
+                  }
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // --- HEADER ---
-  Widget _buildHeader(AuthController authController) {
+  // --- DRAWER WIDGET (MỚI) ---
+  Widget _buildDrawer(BuildContext context, AuthController authController) {
+    return Drawer(
+      backgroundColor: const Color(0xFF121212),
+      child: Obx(() {
+        // Lấy dữ liệu user thật
+        final user = authController.currentUser.value;
+        final username = user?.username ?? "Khách";
+        final email = user?.email ?? "Đăng nhập để đồng bộ";
+        // Fallback ảnh nếu không có avatar
+        final avatar = (user != null && user.avatar.isNotEmpty)
+            ? user.avatar
+            : "https://i.pravatar.cc/150?img=11";
+
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1C2E24), // Màu xanh rêu đậm spotify
+              ),
+              accountName: Text(
+                username,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              accountEmail: Text(
+                email,
+                style: const TextStyle(color: Colors.white70),
+              ),
+              currentAccountPicture: GestureDetector(
+                onTap: () {
+                  Get.back(); // Đóng drawer
+                  Get.to(() => const ProfileScreen()); // Chuyển sang Profile
+                },
+                child: CircleAvatar(
+                  backgroundImage: CachedNetworkImageProvider(avatar),
+                ),
+              ),
+            ),
+
+            // Các mục Menu
+            ListTile(
+              leading: const Icon(Icons.person, color: Colors.white),
+              title: const Text("Hồ sơ", style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Get.back();
+                Get.to(() => const ProfileScreen());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history, color: Colors.white),
+              title: const Text(
+                "Mới phát gần đây",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                // TODO: Chức năng lịch sử
+                Get.back();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.white),
+              title: const Text(
+                "Cài đặt",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                // TODO: Chức năng cài đặt
+                Get.back();
+              },
+            ),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(color: Colors.grey, thickness: 0.5),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                "Đăng xuất",
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () => authController.logout(),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // --- HEADER (CẬP NHẬT) ---
+  // Thêm tham số onAvatarTap và dùng Obx hiển thị dữ liệu thật
+  Widget _buildHeader(AuthController authController, VoidCallback onAvatarTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Row(
+          Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.grey,
-                backgroundImage: NetworkImage(
-                  'https://i.pravatar.cc/150?img=11',
-                ),
+              // Bọc GestureDetector để mở Drawer khi bấm Avatar
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: Obx(() {
+                  final user = authController.currentUser.value;
+                  final avatar = (user != null && user.avatar.isNotEmpty)
+                      ? user.avatar
+                      : 'https://i.pravatar.cc/150?img=11';
+
+                  return CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey,
+                    backgroundImage: CachedNetworkImageProvider(avatar),
+                  );
+                }),
               ),
-              SizedBox(width: 12),
-              Text(
-                "Good Evening",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+
+              // Bấm vào tên cũng mở Drawer cho tiện
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Good Evening",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14, // Giảm size chữ greeting
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    // Tên người dùng thật
+                    Obx(
+                      () => Text(
+                        authController.currentUser.value?.username ??
+                            "Music Lover",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18, // Tăng size tên
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => authController.logout(),
+            icon: const Icon(
+              Icons.notifications_none,
+              color: Colors.white,
+            ), // Đổi sang icon chuông cho hợp lý
+            onPressed: () {},
           ),
         ],
       ),
     );
   }
 
-  // --- FILTER CHIPS ---
+  // --- FILTER CHIPS (GIỮ NGUYÊN) ---
   Widget _buildFilterChips(HomeController controller) {
     return SizedBox(
       height: 40,
@@ -203,11 +346,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- DASHBOARD BODY ---
+  // --- DASHBOARD BODY (GIỮ NGUYÊN) ---
   Widget _buildDashboardBody(
     HomeController controller,
     PlayerController playerController,
-    LibraryController libraryController, // Nhận thêm tham số
+    LibraryController libraryController,
     BuildContext context,
   ) {
     return SingleChildScrollView(
@@ -217,7 +360,6 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dùng HomeMockPlaylist
           _buildQuickAccessGrid(kMockPlaylists),
 
           const SizedBox(height: 32),
@@ -265,7 +407,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 1. Quick Access Grid (Dùng HomeMockPlaylist)
+  // 1. Quick Access Grid (GIỮ NGUYÊN)
   Widget _buildQuickAccessGrid(List<HomeMockPlaylist> playlists) {
     if (playlists.isEmpty) return const SizedBox();
     final displayList = playlists.take(6).toList();
@@ -328,7 +470,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 2. New Releases (Albums)
+  // 2. New Releases (GIỮ NGUYÊN)
   Widget _buildNewReleasesList(List<AlbumModel> albums) {
     if (albums.isEmpty) return const SizedBox();
     return SizedBox(
@@ -395,7 +537,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 3. Popular Artists
+  // 3. Popular Artists (GIỮ NGUYÊN)
   Widget _buildPopularArtists(List<ArtistModel> artists) {
     if (artists.isEmpty) return const SizedBox();
     return SizedBox(
@@ -407,10 +549,8 @@ class HomeScreen extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final artist = artists[index];
-          // --- THÊM PHẦN GESTURE DETECTOR ---
           return GestureDetector(
             onTap: () {
-              // Chuyển sang trang chi tiết Artist
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => ArtistDetailScreen(artist: artist),
@@ -458,7 +598,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 4. Top Mixes (Dùng HomeMockPlaylist)
+  // 4. Top Mixes (GIỮ NGUYÊN)
   Widget _buildTopMixes(List<HomeMockPlaylist> playlists) {
     if (playlists.isEmpty) return const SizedBox();
     final displayList = playlists.toList();
@@ -531,7 +671,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- SONG LIST ONLY ---
+  // --- SONG LIST ONLY (GIỮ NGUYÊN) ---
   Widget _buildSongListOnly(
     HomeController controller,
     PlayerController playerController,
@@ -562,13 +702,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- HÀM MỚI: HIỂN THỊ DANH SÁCH PLAYLIST ĐỂ CHỌN ---
+  // --- SHOW ADD TO PLAYLIST BOTTOM SHEET (GIỮ NGUYÊN) ---
   void _showAddToPlaylistBottomSheet(
     BuildContext context,
     dynamic song,
     LibraryController libraryController,
   ) {
-    // Đảm bảo load playlist mới nhất khi mở sheet
     if (libraryController.myPlaylists.isEmpty) {
       libraryController.fetchMyPlaylists();
     }
@@ -650,8 +789,6 @@ class HomeScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
-                        // Gọi hàm thêm bài hát trong LibraryController
-                        // 'song' ở đây là dynamic, bạn lấy id của nó
                         libraryController.addSongToPlaylist(
                           playlist.id,
                           song.id,
@@ -665,7 +802,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      isScrollControlled: true, // Cho phép bottom sheet kéo cao lên
+      isScrollControlled: true,
     );
   }
 
@@ -673,8 +810,7 @@ class HomeScreen extends StatelessWidget {
     BuildContext context,
     dynamic song,
     PlayerController playerController,
-    LibraryController
-    libraryController, // Nhận thêm controller để xử lý sự kiện
+    LibraryController libraryController,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -708,14 +844,11 @@ class HomeScreen extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-
-        // --- NÚT 3 CHẤM ĐÃ CÓ CHỨC NĂNG ---
         trailing: IconButton(
           icon: const Icon(Icons.more_vert, color: Colors.grey),
           onPressed: () =>
               _showAddToPlaylistBottomSheet(context, song, libraryController),
         ),
-
         onTap: () => playerController.playSong(song),
       ),
     );

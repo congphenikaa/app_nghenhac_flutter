@@ -6,10 +6,17 @@ class AppUrls {
 
   // Nếu dùng Điện thoại thật: Phải dùng IP LAN của máy tính (ví dụ: http://192.168.1.15:5000).
   static const String baseUrl = 'http://10.0.2.2:5000';
-  // static const String baseUrl = 'http://localhost:5000';
+  // static const String baseUrl = 'http://10.0.2.2:5000' 'https://backend-flutter-ten.vercel.app';
 
   static const String login = '$baseUrl/api/auth/login';
   static const String register = '$baseUrl/api/auth/register';
+
+  static const String userDetail = '$baseUrl/api/user/detail';
+  static const String updateProfile = '$baseUrl/api/user/update';
+
+  static const String toggleLike = '$baseUrl/api/user/toggle-like';
+  static const String toggleFollow = '$baseUrl/api/user/toggle-follow';
+  static const String likedSongs = '$baseUrl/api/user/liked-songs';
 
   static const String listSong = '$baseUrl/api/song/list';
   static const String listCategory = '$baseUrl/api/category/list';
