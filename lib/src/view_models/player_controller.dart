@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 class PlayerController extends GetxController {
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -86,9 +87,21 @@ class PlayerController extends GetxController {
       currentSong.value = song;
       updateMiniPlayerVisibility();
 
-      // Reset & Play
-      // progress.value = Duration.zero; // Không cần thiết vì stream sẽ update
-      await audioPlayer.setUrl(song.audioUrl);
+      // [UPDATE] Tạo AudioSource có gắn thẻ MediaItem để hiển thị Notification
+      final audioSource = AudioSource.uri(
+        Uri.parse(song.audioUrl),
+        tag: MediaItem(
+          // ID là bắt buộc và phải là unique string
+          id: song.id,
+          album: song.album,
+          title: song.title,
+          artist: song.artist,
+          artUri: Uri.parse(song.imageUrl),
+        ),
+      );
+
+      // Set Audio Source mới
+      await audioPlayer.setAudioSource(audioSource);
 
       // Set lại chế độ lặp cho source mới
       _updateAudioLoopMode();

@@ -36,14 +36,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
+        // [TỐI ƯU QUAN TRỌNG CHO ĐIỆN THOẠI THẬT]
+        // Nén ảnh để upload nhanh hơn và tránh lỗi server từ chối file quá lớn
+        imageQuality: 80,
+        maxWidth: 1024, // Giới hạn chiều rộng ảnh (Avatar không cần 4K)
+        maxHeight: 1024,
       );
+
       if (pickedFile != null) {
         setState(() {
           _selectedImage = File(pickedFile.path);
         });
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Không thể chọn ảnh");
+      Get.snackbar("Lỗi", "Không thể chọn ảnh: $e");
     }
   }
 

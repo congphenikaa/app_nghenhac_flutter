@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../configs/app_urls.dart';
 import '../models/user_model.dart';
@@ -78,20 +79,25 @@ class AuthController extends GetxController {
         final prefs = await SharedPreferences.getInstance();
 
         // 1. Lưu token
+        String token = "";
         if (data['token'] != null) {
           await prefs.setString('token', data['token']);
         }
 
         // 2. Lưu User ID & Cập nhật currentUser
         if (data['user'] != null) {
-          // Lưu vào SharedPreferences
-          if (data['user']['_id'] != null) {
-            await prefs.setString('userId', data['user']['_id']);
-          }
+          String userId = data['user']['_id'] ?? "";
 
-          // --- CẬP NHẬT NGAY VÀO BIẾN REACTIVE ---
-          currentUser.value = UserModel.fromJson(data['user']);
-          print("Login thành công. User: ${currentUser.value?.username}");
+          if (userId.isNotEmpty) {
+            await prefs.setString('userId', userId);
+
+            // [FIX ĐỒNG BỘ]: Thay vì dùng ngay data['user'] (thường thiếu like/follow),
+            // ta gọi fetchUserProfile để lấy dữ liệu đầy đủ từ server.
+            await fetchUserProfile(userId, token);
+          } else {
+            // Fallback nếu không có ID
+            currentUser.value = UserModel.fromJson(data['user']);
+          }
         }
 
         Get.offAll(() => const MainWrapper());
@@ -136,11 +142,17 @@ class AuthController extends GetxController {
         if (token != null) await prefs.setString('token', token);
 
         if (data['user'] != null) {
-          if (data['user']['_id'] != null) {
-            await prefs.setString('userId', data['user']['_id']);
+          String userId = data['user']['_id'] ?? "";
+          if (userId.isNotEmpty) {
+            await prefs.setString('userId', userId);
+
+            // [FIX ĐỒNG BỘ]: Gọi fetchUserProfile ngay sau khi đăng ký thành công
+            if (token != null) {
+              await fetchUserProfile(userId, token);
+            } else {
+              currentUser.value = UserModel.fromJson(data['user']);
+            }
           }
-          // --- CẬP NHẬT NGAY VÀO BIẾN REACTIVE ---
-          currentUser.value = UserModel.fromJson(data['user']);
         }
 
         Get.offAll(() => const MainWrapper());
@@ -279,7 +291,11 @@ class AuthController extends GetxController {
       if (gender != null) request.fields['gender'] = gender;
       if (imageFile != null) {
         request.files.add(
-          await http.MultipartFile.fromPath('image', imageFile.path),
+          await http.MultipartFile.fromPath(
+            'image',
+            imageFile.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
         );
       }
 

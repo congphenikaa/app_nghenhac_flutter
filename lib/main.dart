@@ -1,10 +1,20 @@
 import 'package:app_nghenhac/app_binding.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
-import 'package:app_nghenhac/src/views/MiniPlayer.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
-void main() {
+Future<void> main() async {
+  // Đảm bảo Binding được khởi tạo trước
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Khởi tạo JustAudioBackground
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
+  );
+
   runApp(const MyApp());
 }
 
@@ -23,28 +33,13 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       initialBinding: AppBinding(),
-      home: const SplashScreen(), // Chạy Splash trước
-      builder: (context, child) {
-        return Scaffold(
-          // child chính là màn hình hiện tại (Home, Settings, Player, v.v.)
-          // Chúng ta dùng Stack để đặt MiniPlayer đè lên child
-          body: Stack(
-            children: [
-              // Lớp 1: Màn hình ứng dụng
-              // Cần bao bọc trong một Widget để xử lý padding dưới đáy
-              // (tránh bị MiniPlayer che mất nội dung cuối list)
-              Positioned.fill(child: child ?? const SizedBox()),
+      home: const SplashScreen(),
 
-              // Lớp 2: Mini Player
-              const Positioned(
-                bottom: 75,
-                left: 0,
-                right: 0,
-                // MiniPlayer sẽ tự ẩn hiện nhờ logic Obx bên trong nó
-                child: MiniPlayer(),
-              ),
-            ],
-          ),
+      builder: (context, child) {
+        return MediaQuery(
+          // Đảm bảo text scale không phá vỡ giao diện
+          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          child: child ?? const SizedBox(),
         );
       },
     );
