@@ -183,6 +183,7 @@ class AuthController extends GetxController {
     Get.offAll(() => const LoginScreen());
   }
 
+  // --- THÍCH / BỎ THÍCH BÀI HÁT ---
   Future<void> toggleLikeSong(String songId) async {
     if (currentUser.value == null) return;
 

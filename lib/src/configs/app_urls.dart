@@ -5,8 +5,10 @@ class AppUrls {
   // Nếu dùng iOS Simulator: Dùng http://localhost:5000
 
   // Nếu dùng Điện thoại thật: Phải dùng IP LAN của máy tính (ví dụ: http://10.60.129.45:5000). dùng câu lệnh ipcofig để xem ipv4
-  static const String baseUrl = 'http://10.0.2.2:5000';
-  // static const String baseUrl = 'http://10.0.2.2:5000' 'https://backend-flutter-ten.vercel.app';
+  static const String baseUrl = 'http://192.168.1.13:5000';
+  // static const String baseUrl = 'http://10.0.2.2:5000'
+  // 'https://backend-flutter-ten.vercel.app'
+  // 192.168.0.103:5000;
 
   static const String login = '$baseUrl/api/auth/login';
   static const String register = '$baseUrl/api/auth/register';
@@ -25,6 +27,8 @@ class AppUrls {
 
   static const String songByAlbum = '$baseUrl/api/song/album';
   static const String searchSong = '$baseUrl/api/song/search';
+
+  static const String playSong = '$baseUrl/api/song/play';
 
   static const String listAlbum = '$baseUrl/api/album/list';
   static const String listArtist = '$baseUrl/api/artist/list';

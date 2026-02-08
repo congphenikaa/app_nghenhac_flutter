@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:async';
+import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import '../configs/app_urls.dart';
 
 class PlayerController extends GetxController {
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -23,6 +27,9 @@ class PlayerController extends GetxController {
   // Chế độ phát
   var isShuffleMode = false.obs;
   var loopMode = LoopMode.off.obs; // off, all, one
+
+  // Biến đếm lượt nghe
+  Timer? _playCountTimer;
 
   @override
   void onInit() {
@@ -107,8 +114,40 @@ class PlayerController extends GetxController {
       _updateAudioLoopMode();
 
       audioPlayer.play();
+
+      // Gọi hàm đếm lượt nghe
+      _startPlayCountTimer(song.id);
     } catch (e) {
       print("Lỗi phát nhạc: $e");
+    }
+  }
+
+  void _startPlayCountTimer(String songId) {
+    // 1. Hủy hẹn giờ cũ (nếu user chuyển bài quá nhanh)
+    _playCountTimer?.cancel();
+
+    // 2. Bắt đầu hẹn giờ mới: Sau 30 giây mới tính là 1 lượt nghe
+    _playCountTimer = Timer(const Duration(seconds: 30), () {
+      _incrementPlayCountApi(songId);
+    });
+  }
+
+  Future<void> _incrementPlayCountApi(String songId) async {
+    try {
+      // Sử dụng AppUrls.playSong thay vì hardcode
+      final response = await http.post(
+        Uri.parse(AppUrls.playSong),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'id': songId}),
+      );
+
+      if (response.statusCode == 200) {
+        print("View +1 cho bài hát: $songId");
+      } else {
+        print("Lỗi server tăng view: ${response.body}");
+      }
+    } catch (e) {
+      print("Lỗi kết nối tăng view: $e");
     }
   }
 

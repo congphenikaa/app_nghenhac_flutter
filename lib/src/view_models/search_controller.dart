@@ -33,18 +33,6 @@ class SearchPageController extends GetxController {
   void onInit() {
     super.onInit();
     fetchCategories(); // Load category khi vào màn hình
-
-    // Lắng nghe text controller để cập nhật biến searchText
-    textController.addListener(() {
-      searchText.value = textController.text;
-    });
-  }
-
-  @override
-  void onClose() {
-    _debounce?.cancel();
-    textController.dispose();
-    super.onClose();
   }
 
   // Hàm load danh sách Category (Browse All)
@@ -67,10 +55,18 @@ class SearchPageController extends GetxController {
 
   // Hàm xử lý khi user gõ phím
   void onSearchChanged(String query) {
-    // Cập nhật biến Rx ngay lập tức để UI (nút X) phản hồi
     searchText.value = query;
 
+    // 1. Hủy lệnh tìm kiếm cũ nếu đang đếm ngược
     if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // 2. Nếu ô tìm kiếm rỗng -> Xóa kết quả
+    if (query.trim().isEmpty) {
+      clearResults();
+      return;
+    }
+
+    // 3. Bắt đầu đếm ngược 500ms. Nếu sau 500ms không gõ thêm gì thì mới gọi API
     _debounce = Timer(const Duration(milliseconds: 500), () {
       searchGlobal(query);
     });
@@ -78,32 +74,26 @@ class SearchPageController extends GetxController {
 
   // Gọi API tìm kiếm
   Future<void> searchGlobal(String query) async {
-    if (query.isEmpty) {
-      clearResults();
-      return;
-    }
-
     try {
       isLoading.value = true;
-      final url = '${AppUrls.searchSong}?query=$query';
+
+      // QUAN TRỌNG: Mã hóa tiếng Việt để không lỗi URL (Ví dụ: "Sơn Tùng" -> "S%C6%A1n...")
+      final encodedQuery = Uri.encodeComponent(query);
+      final url = '${AppUrls.searchSong}?query=$encodedQuery';
+
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+        final data = json.decode(response.body);
         if (data['success'] == true) {
-          // Parse Songs
-          final List<dynamic> sList = data['songs'] ?? [];
-          songResults.value = sList.map((e) => SongModel.fromJson(e)).toList();
-
-          // Parse Artists
-          final List<dynamic> aList = data['artists'] ?? [];
-          artistResults.value = aList
+          // Parse và gán dữ liệu vào List Obx
+          songResults.value = (data['songs'] as List)
+              .map((e) => SongModel.fromJson(e))
+              .toList();
+          artistResults.value = (data['artists'] as List)
               .map((e) => ArtistModel.fromJson(e))
               .toList();
-
-          // Parse Albums
-          final List<dynamic> alList = data['albums'] ?? [];
-          albumResults.value = alList
+          albumResults.value = (data['albums'] as List)
               .map((e) => AlbumModel.fromJson(e))
               .toList();
         }
@@ -119,5 +109,12 @@ class SearchPageController extends GetxController {
     songResults.clear();
     artistResults.clear();
     albumResults.clear();
+  }
+
+  @override
+  void onClose() {
+    _debounce?.cancel();
+    textController.dispose();
+    super.onClose();
   }
 }

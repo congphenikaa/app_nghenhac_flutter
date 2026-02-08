@@ -1,7 +1,6 @@
 import 'package:app_nghenhac/src/models/artist_model.dart';
-import 'package:app_nghenhac/src/models/album_model.dart';
 import 'package:app_nghenhac/src/models/song_model.dart';
-import 'package:app_nghenhac/src/models/category_model.dart';
+import 'package:app_nghenhac/src/models/album_model.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/view_models/search_controller.dart';
 import 'package:app_nghenhac/src/views/category_detail_screen.dart';
@@ -14,7 +13,7 @@ import 'package:get/get.dart';
 class SearchScreen extends StatelessWidget {
   const SearchScreen({super.key});
 
-  // Hàm chuyển mã Hex (#RRGGBB) sang Color
+  // Hàm chuyển đổi mã Hex giữ nguyên
   Color _hexToColor(String hexString) {
     try {
       final buffer = StringBuffer();
@@ -29,58 +28,64 @@ class SearchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final SearchPageController controller = Get.put(SearchPageController());
-    final PlayerController playerController = Get.find<PlayerController>();
+    final PlayerController playerController = Get.find();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Nền đen chuẩn Spotify
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. HEADER & SEARCH BAR
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              color: Colors.black, // Giữ header cố định nền đen
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Search",
+                    "Tìm kiếm",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 32,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller.textController,
-                    style: const TextStyle(color: Colors.black),
-                    onChanged: (value) => controller.onSearchChanged(value),
+                    onChanged: (val) => controller.onSearchChanged(val),
+                    style: const TextStyle(color: Colors.black, fontSize: 16),
                     decoration: InputDecoration(
-                      hintText: "Bài hát, Nghệ sĩ, Album...",
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      filled: true,
+                      hintText: 'Bạn muốn nghe gì?',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[800],
+                        fontWeight: FontWeight.w500,
+                      ),
                       fillColor: Colors.white,
-                      contentPadding: EdgeInsets.zero,
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey[800],
+                        size: 28,
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          4,
+                        ), // Bo góc nhẹ giống Spotify mới
                         borderSide: BorderSide.none,
                       ),
-                      // Nút xóa text
-                      // [CẬP NHẬT] Dùng biến .obs để Obx hoạt động đúng
                       suffixIcon: Obx(
                         () => controller.searchText.value.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(
                                   Icons.clear,
-                                  color: Colors.grey,
+                                  color: Colors.black,
                                 ),
                                 onPressed: () {
                                   controller.textController.clear();
-                                  controller.onSearchChanged(
-                                    "",
-                                  ); // Cập nhật cả biến obs và gọi API
-                                  controller.clearResults();
+                                  controller.onSearchChanged("");
                                 },
                               )
                             : const SizedBox.shrink(),
@@ -91,26 +96,80 @@ class SearchScreen extends StatelessWidget {
               ),
             ),
 
-            // 2. BODY CONTENT
+            // 2. NỘI DUNG CHÍNH
             Expanded(
               child: Obx(() {
+                // A. Loading
                 if (controller.isLoading.value) {
                   return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF30e87a)),
+                    child: CircularProgressIndicator(color: Colors.green),
                   );
                 }
 
-                // Nếu ô tìm kiếm rỗng -> Hiển thị Browse All (Categories)
-                // [CẬP NHẬT] Dùng biến .obs thay vì controller.textController.text
+                // B. Category (Browse All) - Giao diện mặc định
                 if (controller.searchText.value.isEmpty) {
-                  return _buildBrowseAll(controller);
+                  return _buildCategoryGrid(controller);
                 }
 
-                // Nếu có kết quả -> Hiển thị list
-                return _buildSearchResults(
-                  controller,
-                  playerController,
-                  context,
+                // C. Không tìm thấy
+                if (controller.songResults.isEmpty &&
+                    controller.artistResults.isEmpty &&
+                    controller.albumResults.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.search_off,
+                          color: Colors.grey,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Không tìm thấy kết quả nào cho '${controller.searchText.value}'",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // D. Danh sách kết quả (Kết hợp trong ListView để scroll mượt)
+                return ListView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  children: [
+                    // --- Phần Bài hát ---
+                    if (controller.songResults.isNotEmpty) ...[
+                      _buildSectionTitle("Bài hát"),
+                      ...controller.songResults.map(
+                        (song) => _buildSongItem(song, playerController),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // --- Phần Nghệ sĩ ---
+                    if (controller.artistResults.isNotEmpty) ...[
+                      _buildSectionTitle("Nghệ sĩ"),
+                      ...controller.artistResults.map(
+                        (artist) => _buildArtistItem(artist),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // --- Phần Album ---
+                    if (controller.albumResults.isNotEmpty) ...[
+                      _buildSectionTitle("Album"),
+                      ...controller.albumResults.map(
+                        (album) => _buildAlbumItem(album),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    const SizedBox(height: 80), // Padding cho MiniPlayer
+                  ],
                 );
               }),
             ),
@@ -120,109 +179,202 @@ class SearchScreen extends StatelessWidget {
     );
   }
 
-  // --- GIAO DIỆN BROWSE ALL (Lưới Danh Mục) ---
-  Widget _buildBrowseAll(SearchPageController controller) {
-    if (controller.categories.isEmpty) {
-      return const Center(
-        child: Text(
-          "Đang tải danh mục...",
-          style: TextStyle(color: Colors.grey),
+  // --- HELPER: Title Section ---
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  // --- WIDGET: Bài hát (ListTile sạch sẽ) ---
+  Widget _buildSongItem(SongModel song, PlayerController playerController) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: CachedNetworkImage(
+          imageUrl: song.imageUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorWidget: (context, url, error) =>
+              Container(color: Colors.grey[800]),
+        ),
+      ),
+      title: Text(
+        song.title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        "Bài hát • ${song.artist}",
+        style: TextStyle(color: Colors.grey[400], fontSize: 13),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.more_vert, color: Colors.grey),
+        onPressed: () {}, // Thêm chức năng more sau
+      ),
+      onTap: () {
+        playerController.playSong(song);
+      },
+    );
+  }
+
+  // --- WIDGET: Nghệ sĩ (Avatar Tròn) ---
+  Widget _buildArtistItem(ArtistModel artist) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.grey[800],
+        backgroundImage: CachedNetworkImageProvider(artist.imageUrl),
+      ),
+      title: Text(
+        artist.name,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        "Nghệ sĩ",
+        style: TextStyle(color: Colors.grey[400], fontSize: 13),
+      ),
+      onTap: () => Get.to(() => ArtistDetailScreen(artist: artist)),
+    );
+  }
+
+  // --- WIDGET: Album (Ảnh Vuông) ---
+  Widget _buildAlbumItem(AlbumModel album) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: CachedNetworkImage(
+          imageUrl: album.imageUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorWidget: (context, url, error) =>
+              Container(color: Colors.grey[800]),
+        ),
+      ),
+      title: Text(
+        album.title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        "Album • ${album.artistName}",
+        style: TextStyle(color: Colors.grey[400], fontSize: 13),
+      ),
+      onTap: () => Get.to(() => AlbumDetailScreen(album: album)),
+    );
+  }
+
+  // --- WIDGET: Grid Categories (Style thẻ Spotify) ---
+  Widget _buildCategoryGrid(SearchPageController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
-            "Browse All",
+            "Duyệt tìm tất cả",
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              100,
-            ), // Padding dưới để tránh miniplayer
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // 2 cột
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.6, // Tỷ lệ rộng/cao
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.6, // Tỉ lệ thẻ ngang
             ),
             itemCount: controller.categories.length,
             itemBuilder: (context, index) {
               final cat = controller.categories[index];
-              // Chuyển mã màu từ model sang Color
-              final tileColor = _hexToColor(cat.color);
+              final color = _hexToColor(cat.color);
 
               return GestureDetector(
                 onTap: () {
                   Get.to(() => CategoryDetailScreen(category: cat));
                 },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: tileColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  clipBehavior: Clip.hardEdge, // Cắt ảnh tràn ra ngoài
-                  child: Stack(
-                    children: [
-                      // Tên Category
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Text(
-                          cat.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    4,
+                  ), // Spotify bo góc rất nhẹ (4px)
+                  child: Container(
+                    color: color,
+                    child: Stack(
+                      children: [
+                        // Chữ nằm góc Trái - Trên
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Text(
+                            cat.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
                           ),
                         ),
-                      ),
-                      // Ảnh Category (Xoay nghiêng ở góc phải)
-                      Positioned(
-                        right: -15,
-                        bottom: -5,
-                        child: Transform.rotate(
-                          angle: 25 * 3.14159 / 180, // Xoay 25 độ
-                          child: Container(
-                            width: 75,
-                            height: 75,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 4),
+                        // Ảnh xoay nghiêng nằm góc Phải - Dưới
+                        Positioned(
+                          right: -15,
+                          bottom: -5,
+                          child: RotationTransition(
+                            turns: const AlwaysStoppedAnimation(25 / 360),
+                            child: Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.black12, // Shadow giả
+                                image: DecorationImage(
+                                  image: CachedNetworkImageProvider(cat.image),
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: CachedNetworkImage(
-                                // --- [QUAN TRỌNG] Dùng 'image' đúng theo Model cũ của bạn ---
-                                imageUrl: cat.image,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) =>
-                                    Container(color: Colors.black26),
-                                errorWidget: (_, __, ___) => const SizedBox(),
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -230,234 +382,6 @@ class SearchScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  // --- GIAO DIỆN KẾT QUẢ TÌM KIẾM ---
-  Widget _buildSearchResults(
-    SearchPageController controller,
-    PlayerController playerController,
-    BuildContext context,
-  ) {
-    if (controller.songResults.isEmpty &&
-        controller.artistResults.isEmpty &&
-        controller.albumResults.isEmpty) {
-      return const Center(
-        child: Text(
-          "Không tìm thấy kết quả nào.",
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return ListView(
-      padding: EdgeInsets.only(
-        bottom: playerController.currentSong.value != null ? 100 : 20,
-      ),
-      children: [
-        // 1. Top Result (Artist đầu tiên)
-        if (controller.artistResults.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              "Kết quả hàng đầu",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          _buildArtistItem(context, controller.artistResults[0]),
-        ],
-
-        // 2. Songs
-        if (controller.songResults.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              "Bài hát",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ...controller.songResults.map(
-            (song) => ListTile(
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: CachedNetworkImage(
-                  imageUrl: song.imageUrl,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.music_note, color: Colors.white),
-                ),
-              ),
-              title: Text(
-                song.title,
-                style: const TextStyle(color: Colors.white),
-              ),
-              subtitle: Text(
-                song.artist,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              trailing: const Icon(Icons.more_vert, color: Colors.grey),
-              onTap: () => playerController.playSong(song),
-            ),
-          ),
-        ],
-
-        // 3. Artists (Khác top result)
-        if (controller.artistResults.length > 1) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              "Nghệ sĩ",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ...controller.artistResults
-              .skip(1)
-              .map(
-                (artist) => ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: CachedNetworkImageProvider(
-                      artist.imageUrl,
-                    ),
-                    radius: 25,
-                  ),
-                  title: Text(
-                    artist.name,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    "Nghệ sĩ",
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ArtistDetailScreen(artist: artist),
-                      ),
-                    );
-                  },
-                ),
-              ),
-        ],
-
-        // 4. Albums
-        if (controller.albumResults.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              "Albums",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ...controller.albumResults.map(
-            (album) => ListTile(
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: CachedNetworkImage(
-                  imageUrl: album.imageUrl,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.album, color: Colors.white),
-                ),
-              ),
-              title: Text(
-                album.title,
-                style: const TextStyle(color: Colors.white),
-              ),
-              subtitle: const Text(
-                "Album",
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AlbumDetailScreen(album: album),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildArtistItem(BuildContext context, ArtistModel artist) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: artist)),
-      ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C2E24), // Màu nền thẻ Top Result
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundImage: CachedNetworkImageProvider(artist.imageUrl),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    artist.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      "Nghệ sĩ",
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

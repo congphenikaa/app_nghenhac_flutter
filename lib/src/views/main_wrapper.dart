@@ -4,7 +4,6 @@ import 'package:app_nghenhac/src/views/library_screen.dart';
 import 'package:app_nghenhac/src/views/premium_screen.dart';
 import 'package:app_nghenhac/src/views/search_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class MainWrapper extends StatefulWidget {
   const MainWrapper({super.key});

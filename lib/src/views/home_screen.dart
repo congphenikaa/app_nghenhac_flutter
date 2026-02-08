@@ -1,3 +1,4 @@
+import 'package:app_nghenhac/src/models/song_model.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/views/album_detail_screen.dart';
@@ -10,59 +11,6 @@ import '../view_models/home_controller.dart';
 import '../view_models/library_controller.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
-
-// --- CLASS MOCK DATA (GIỮ NGUYÊN) ---
-class HomeMockPlaylist {
-  final int id;
-  final String name;
-  final String imageUrl;
-
-  HomeMockPlaylist({
-    required this.id,
-    required this.name,
-    required this.imageUrl,
-  });
-}
-
-// Danh sách Mock Data (GIỮ NGUYÊN)
-final List<HomeMockPlaylist> kMockPlaylists = [
-  HomeMockPlaylist(
-    id: 1,
-    name: "Liked Songs",
-    imageUrl:
-        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
-  ),
-  HomeMockPlaylist(
-    id: 2,
-    name: "On Repeat",
-    imageUrl:
-        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
-  ),
-  HomeMockPlaylist(
-    id: 3,
-    name: "Daily Mix 1",
-    imageUrl:
-        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80",
-  ),
-  HomeMockPlaylist(
-    id: 4,
-    name: "Discover Weekly",
-    imageUrl:
-        "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=300&q=80",
-  ),
-  HomeMockPlaylist(
-    id: 5,
-    name: "Release Radar",
-    imageUrl:
-        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80",
-  ),
-  HomeMockPlaylist(
-    id: 6,
-    name: "Rock Classics",
-    imageUrl:
-        "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&q=80",
-  ),
-];
 
 class HomeScreen extends StatelessWidget {
   // 1. Tạo GlobalKey để điều khiển Drawer
@@ -118,6 +66,7 @@ class HomeScreen extends StatelessWidget {
                       playerController,
                       libraryController,
                       context,
+                      authController,
                     );
                   } else {
                     return _buildSongListOnly(
@@ -125,6 +74,7 @@ class HomeScreen extends StatelessWidget {
                       playerController,
                       libraryController,
                       context,
+                      authController,
                     );
                   }
                 }),
@@ -352,6 +302,7 @@ class HomeScreen extends StatelessWidget {
     PlayerController playerController,
     LibraryController libraryController,
     BuildContext context,
+    AuthController authController,
   ) {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -360,7 +311,7 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildQuickAccessGrid(kMockPlaylists),
+          _buildQuickAccessGrid(controller.songList, playerController),
 
           const SizedBox(height: 32),
           _buildSectionTitle("New Releases"),
@@ -372,7 +323,7 @@ class HomeScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
           _buildSectionTitle("Your Top Mixes"),
-          _buildTopMixes(kMockPlaylists),
+          _buildTopMixes(controller.albums),
 
           const SizedBox(height: 32),
           _buildSectionTitle("Tracks For You"),
@@ -386,6 +337,7 @@ class HomeScreen extends StatelessWidget {
               controller.songList[index],
               playerController,
               libraryController,
+              authController,
             ),
           ),
         ],
@@ -408,9 +360,12 @@ class HomeScreen extends StatelessWidget {
   }
 
   // 1. Quick Access Grid (GIỮ NGUYÊN)
-  Widget _buildQuickAccessGrid(List<HomeMockPlaylist> playlists) {
-    if (playlists.isEmpty) return const SizedBox();
-    final displayList = playlists.take(6).toList();
+  Widget _buildQuickAccessGrid(
+    List<SongModel> songs,
+    PlayerController playerController,
+  ) {
+    if (songs.isEmpty) return const SizedBox();
+    final displayList = songs.take(6).toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -425,44 +380,53 @@ class HomeScreen extends StatelessWidget {
           mainAxisSpacing: 8,
         ),
         itemBuilder: (context, index) {
-          final item = displayList[index];
-          return Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C2E24),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    bottomLeft: Radius.circular(4),
-                  ),
-                  child: CachedNetworkImage(
-                    imageUrl: item.imageUrl,
-                    width: 55,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Container(
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.music_note, color: Colors.white),
+          final song = displayList[index];
+          return GestureDetector(
+            onTap: () => playerController.playSong(song),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C2E24), // Màu nền xanh đen bạn thích
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      bottomLeft: Radius.circular(4),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: song.imageUrl,
+                      width: 55,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[800],
+                        child: const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    item.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Text(
+                        song.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -599,9 +563,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   // 4. Top Mixes (GIỮ NGUYÊN)
-  Widget _buildTopMixes(List<HomeMockPlaylist> playlists) {
-    if (playlists.isEmpty) return const SizedBox();
-    final displayList = playlists.toList();
+  Widget _buildTopMixes(List<AlbumModel> albums) {
+    if (albums.isEmpty) return const SizedBox();
+
+    // Gradient màu sắc bạn đã định nghĩa
     final gradients = [
       [Colors.indigo, Colors.purple],
       [Colors.orange, Colors.red],
@@ -614,56 +579,62 @@ class HomeScreen extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: displayList.length,
+        itemCount: albums.length,
         separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
-          final playlist = displayList[index];
+          final album = albums[index];
           final colors = gradients[index % gradients.length];
 
-          return Container(
-            width: 140,
-            height: 140,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: colors,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  bottom: 12,
-                  left: 12,
-                  right: 12,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        playlist.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          height: 1.1,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 4,
-                        width: 30,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF30e87a),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ],
-                  ),
+          return GestureDetector(
+            onTap: () {
+              Get.to(() => AlbumDetailScreen(album: album));
+            },
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: colors,
                 ),
-              ],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          album.title, // Lấy tên thật từ Album
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            height: 1.1,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        // Thanh trang trí màu xanh lá
+                        Container(
+                          height: 4,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF30e87a),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -677,6 +648,7 @@ class HomeScreen extends StatelessWidget {
     PlayerController playerController,
     LibraryController libraryController,
     BuildContext context,
+    AuthController authController,
   ) {
     if (controller.songList.isEmpty) {
       return const Center(
@@ -698,6 +670,7 @@ class HomeScreen extends StatelessWidget {
         controller.songList[index],
         playerController,
         libraryController,
+        authController,
       ),
     );
   }
@@ -808,9 +781,10 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildSongItem(
     BuildContext context,
-    dynamic song,
+    SongModel song,
     PlayerController playerController,
     LibraryController libraryController,
+    AuthController authController,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -839,18 +813,159 @@ class HomeScreen extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          song.description,
+          song.description.isNotEmpty ? song.description : song.artist,
           style: const TextStyle(color: Colors.grey, fontSize: 13),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: IconButton(
           icon: const Icon(Icons.more_vert, color: Colors.grey),
-          onPressed: () =>
-              _showAddToPlaylistBottomSheet(context, song, libraryController),
+          // Thay vì gọi AddToPlaylist, gọi ShowOptions
+          onPressed: () => _showSongOptionsBottomSheet(
+            context,
+            song,
+            playerController,
+            libraryController,
+            authController,
+          ),
         ),
         onTap: () => playerController.playSong(song),
       ),
+    );
+  }
+
+  // --- SHOW SONG OPTIONS BOTTOM SHEET (MỚI) ---
+  void _showSongOptionsBottomSheet(
+    BuildContext context,
+    SongModel song,
+    PlayerController playerController,
+    LibraryController libraryController,
+    AuthController authController,
+  ) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // HEADER: Ảnh và Tên bài hát
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: CachedNetworkImage(
+                    imageUrl: song.imageUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) =>
+                        const Icon(Icons.music_note, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        song.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        song.artist,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.grey, height: 1),
+            const SizedBox(height: 10),
+
+            // OPTION 1: PHÁT NHẠC
+            ListTile(
+              leading: const Icon(
+                Icons.play_arrow,
+                color: Colors.white,
+                size: 28,
+              ),
+              title: const Text(
+                "Phát nhạc",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back(); // Đóng bottom sheet
+                playerController.playSong(song);
+              },
+            ),
+
+            // OPTION 2: LIKE / UNLIKE (Sử dụng Obx để cập nhật icon)
+            Obx(() {
+              // Kiểm tra xem bài hát có trong danh sách likedSongs của user không
+              // Giả sử likedSongs lưu List<String> id
+              bool isLiked = false;
+              if (authController.currentUser.value != null) {
+                isLiked = authController.currentUser.value!.likedSongIds
+                    .contains(song.id);
+              }
+
+              return ListTile(
+                leading: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? const Color(0xFF30e87a) : Colors.white,
+                  size: 28,
+                ),
+                title: Text(
+                  isLiked ? "Đã thích" : "Thích",
+                  style: TextStyle(
+                    color: isLiked ? const Color(0xFF30e87a) : Colors.white,
+                  ),
+                ),
+                onTap: () {
+                  authController.toggleLikeSong(song.id);
+                  // Không đóng bottom sheet để user thấy hiệu ứng like
+                },
+              );
+            }),
+
+            // OPTION 3: THÊM VÀO PLAYLIST
+            ListTile(
+              leading: const Icon(
+                Icons.playlist_add,
+                color: Colors.white,
+                size: 28,
+              ),
+              title: const Text(
+                "Thêm vào Playlist",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back(); // Đóng menu option trước
+                // Mở menu playlist cũ của bạn
+                _showAddToPlaylistBottomSheet(context, song, libraryController);
+              },
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
     );
   }
 }
