@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../view_models/home_controller.dart';
 import '../view_models/library_controller.dart';
+import '../view_models/chart_controller.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 
@@ -24,6 +25,7 @@ class HomeScreen extends StatelessWidget {
     final PlayerController playerController = Get.find<PlayerController>();
     final AuthController authController = Get.put(AuthController());
     final LibraryController libraryController = Get.put(LibraryController());
+    final ChartController chartController = Get.put(ChartController());
 
     // 2. Thay SafeArea bằng Scaffold để dùng Drawer
     return Scaffold(
@@ -67,6 +69,7 @@ class HomeScreen extends StatelessWidget {
                       libraryController,
                       context,
                       authController,
+                      chartController,
                     );
                   } else {
                     return _buildSongListOnly(
@@ -303,6 +306,7 @@ class HomeScreen extends StatelessWidget {
     LibraryController libraryController,
     BuildContext context,
     AuthController authController,
+    ChartController chartController,
   ) {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -312,6 +316,10 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildQuickAccessGrid(controller.songList, playerController),
+
+          const SizedBox(height: 32),
+          _buildSectionTitle("🔥 Trending"), // <-- TIÊU ĐỀ BẢNG XẾP HẠNG
+          _buildTopChartsList(chartController, playerController),
 
           const SizedBox(height: 32),
           _buildSectionTitle("New Releases"),
@@ -640,6 +648,122 @@ class HomeScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  // --- UI BẢNG XẾP HẠNG ---
+  Widget _buildTopChartsList(
+    ChartController chartController,
+    PlayerController playerController,
+  ) {
+    return Obx(() {
+      if (chartController.isLoading.value) {
+        return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF30e87a)),
+        );
+      }
+
+      if (chartController.topSongsData.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            "Hôm nay chưa có lượt nghe nào. Hãy là người đầu tiên!",
+            style: TextStyle(color: Colors.white54),
+          ),
+        );
+      }
+
+      // Chỉ hiển thị Top 5 ở màn Home
+      final displayList = chartController.topSongsData.take(5).toList();
+
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: displayList.length,
+        itemBuilder: (context, index) {
+          final item = displayList[index];
+          final int rank = item['rank'] ?? (index + 1);
+
+          // 1. Phân tích SongModel trước
+          final songData = item['song'];
+          final song = SongModel.fromJson(songData);
+
+          // 2. Lấy lượt nghe thực tế trực tiếp từ model bài hát của MongoDB
+          final int playCount = song.plays;
+
+          // Cấu hình màu cho Rank (Top 1 Vàng, Top 2 Bạc, Top 3 Đồng)
+          Color rankColor = Colors.white;
+          if (rank == 1) rankColor = Colors.amber;
+          if (rank == 2) rankColor = Colors.grey[400]!;
+          if (rank == 3) rankColor = Colors.brown[300]!;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      '$rank',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: rankColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: CachedNetworkImage(
+                      imageUrl: song.imageUrl,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) =>
+                          const Icon(Icons.music_note, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              title: Text(
+                song.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${song.artist} • $playCount lượt nghe',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(
+                Icons.play_circle_fill,
+                color: Color(0xFF30e87a),
+                size: 32,
+              ),
+              onTap: () {
+                // Lấy toàn bộ danh sách top làm Playlist để có thể next/prev bài
+                List<SongModel> topPlaylist = chartController.topSongsData
+                    .map((e) => SongModel.fromJson(e['song']))
+                    .toList();
+
+                playerController.playSong(song, newQueue: topPlaylist);
+              },
+            ),
+          );
+        },
+      );
+    });
   }
 
   // --- SONG LIST ONLY (GIỮ NGUYÊN) ---
