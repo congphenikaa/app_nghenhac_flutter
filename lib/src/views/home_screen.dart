@@ -4,6 +4,7 @@ import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/views/album_detail_screen.dart';
 import 'package:app_nghenhac/src/views/artist_detail_screen.dart';
 import 'package:app_nghenhac/src/views/profile_screen.dart';
+import 'package:app_nghenhac/src/views/top_charts_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -318,7 +319,42 @@ class HomeScreen extends StatelessWidget {
           _buildQuickAccessGrid(controller.songList, playerController),
 
           const SizedBox(height: 32),
-          _buildSectionTitle("🔥 Trending"), // <-- TIÊU ĐỀ BẢNG XẾP HẠNG
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text(
+                  "Bảng xếp hạng",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    // Dùng GetX để chuyển sang màn hình mới
+                    Get.to(
+                      () => TopChartsScreen(
+                        chartController: chartController,
+                        playerController: playerController,
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Xem tất cả",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _buildTopChartsList(chartController, playerController),
 
           const SizedBox(height: 32),

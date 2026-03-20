@@ -10,7 +10,6 @@ class ChartController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Đổi tên hàm
     fetchTrendingTop();
   }
 
