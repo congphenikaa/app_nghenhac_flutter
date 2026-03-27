@@ -309,82 +309,91 @@ class HomeScreen extends StatelessWidget {
     AuthController authController,
     ChartController chartController,
   ) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        bottom: playerController.currentSong.value != null ? 100 : 20,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildQuickAccessGrid(controller.songList, playerController),
+    return RefreshIndicator(
+      color: const Color(0xFF30e87a),
+      backgroundColor: Colors.grey[900],
+      onRefresh: () async {
+        // Khi vuốt làm mới, cập nhật lại bảng xếp hạng
+        await chartController.fetchTrendingTop();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(
+          bottom: playerController.currentSong.value != null ? 100 : 20,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildQuickAccessGrid(controller.songList, playerController),
 
-          const SizedBox(height: 32),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  "Bảng xếp hạng",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    // Dùng GetX để chuyển sang màn hình mới
-                    Get.to(
-                      () => TopChartsScreen(
-                        chartController: chartController,
-                        playerController: playerController,
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "Xem tất cả",
+            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    "Bảng xếp hạng",
                     style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () {
+                      // Dùng GetX để chuyển sang màn hình mới
+                      Get.to(
+                        () => TopChartsScreen(
+                          chartController: chartController,
+                          playerController: playerController,
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Xem tất cả",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          _buildTopChartsList(chartController, playerController),
+            _buildTopChartsList(chartController, playerController),
 
-          const SizedBox(height: 32),
-          _buildSectionTitle("New Releases"),
-          _buildNewReleasesList(controller.albums),
+            const SizedBox(height: 32),
+            _buildSectionTitle("New Releases"),
+            _buildNewReleasesList(controller.albums),
 
-          const SizedBox(height: 32),
-          _buildSectionTitle("Popular Artists"),
-          _buildPopularArtists(controller.artists),
+            const SizedBox(height: 32),
+            _buildSectionTitle("Popular Artists"),
+            _buildPopularArtists(controller.artists),
 
-          const SizedBox(height: 32),
-          _buildSectionTitle("Your Top Mixes"),
-          _buildTopMixes(controller.albums),
+            const SizedBox(height: 32),
+            _buildSectionTitle("Your Top Mixes"),
+            _buildTopMixes(controller.albums),
 
-          const SizedBox(height: 32),
-          _buildSectionTitle("Tracks For You"),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: controller.songList.length,
-            itemBuilder: (context, index) => _buildSongItem(
-              context,
-              controller.songList[index],
-              playerController,
-              libraryController,
-              authController,
+            const SizedBox(height: 32),
+            _buildSectionTitle("Tracks For You"),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: controller.songList.length,
+              itemBuilder: (context, index) => _buildSongItem(
+                context,
+                controller.songList[index],
+                playerController,
+                libraryController,
+                authController,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

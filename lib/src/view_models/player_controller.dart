@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:async';
+import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
@@ -29,7 +30,9 @@ class PlayerController extends GetxController {
   var loopMode = LoopMode.off.obs; // off, all, one
 
   // Biến đếm lượt nghe
-  Timer? _playCountTimer;
+  Timer? _listenTimer;
+  int _listenDuration = 0; // Đếm số giây người dùng THỰC SỰ NGHE
+  bool _hasCountedView = false; // Cờ đánh dấu đã cộng view cho bài này chưa
 
   @override
   void onInit() {
@@ -63,9 +66,22 @@ class PlayerController extends GetxController {
 
   // Xử lý khi bài hát kết thúc
   void _onSongComplete() {
-    // Nếu đang Repeat One, Just_audio tự lo (nhờ setLoopMode)
-    // Nếu không phải Repeat One, ta tự chuyển bài
-    if (loopMode.value != LoopMode.one) {
+    if (loopMode.value == LoopMode.one) {
+      // --- XỬ LÝ LẶP LẠI (REPEAT ONE) THỦ CÔNG ---
+      audioPlayer.seek(Duration.zero);
+
+      // BẮT BUỘC: Reset lại bộ đếm để tính view cho vòng lặp thứ 2
+      _hasCountedView = false;
+      _listenDuration = 0;
+      _listenTimer?.cancel();
+
+      // Bật lại đồng hồ bấm giờ 30s
+      if (currentSong.value != null) {
+        _startPlayCountListener(currentSong.value!.id);
+      }
+
+      audioPlayer.play();
+    } else {
       nextSong();
     }
   }
@@ -113,36 +129,63 @@ class PlayerController extends GetxController {
       // Set lại chế độ lặp cho source mới
       _updateAudioLoopMode();
 
+      // --- RESET BỘ ĐẾM KHI CHUYỂN BÀI MỚI ---
+      _hasCountedView = false;
+      _listenDuration = 0;
+      _listenTimer?.cancel(); // Hủy đồng hồ bấm giờ của bài cũ
+
       audioPlayer.play();
 
       // Gọi hàm đếm lượt nghe
-      _startPlayCountTimer(song.id);
+      _startPlayCountListener(song.id);
     } catch (e) {
       print("Lỗi phát nhạc: $e");
     }
   }
 
-  void _startPlayCountTimer(String songId) {
-    // 1. Hủy hẹn giờ cũ (nếu user chuyển bài quá nhanh)
-    _playCountTimer?.cancel();
+  void _startPlayCountListener(String songId) {
+    // Dùng Timer chạy mỗi 1 giây để đếm thời gian nghe thực tế
+    _listenTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      // 1. Nếu đã đếm xong rồi thì tắt Timer luôn cho nhẹ máy
+      if (_hasCountedView) {
+        timer.cancel();
+        return;
+      }
 
-    // 2. Bắt đầu hẹn giờ mới: Sau 30 giây mới tính là 1 lượt nghe
-    _playCountTimer = Timer(const Duration(seconds: 30), () {
-      _incrementPlayCountApi(songId);
+      // 2. Chỉ tính thời gian khi bài hát ĐANG PHÁT (không pause, không buffering)
+      if (audioPlayer.playing &&
+          audioPlayer.processingState == ProcessingState.ready) {
+        _listenDuration++;
+      }
+
+      // 3. Đạt đúng 30 giây NGHE THỰC TẾ thì mới gọi API
+      if (_listenDuration >= 30) {
+        _hasCountedView = true;
+        _incrementPlayCountApi(songId);
+        timer.cancel();
+      }
     });
   }
 
   Future<void> _incrementPlayCountApi(String songId) async {
     try {
-      // Sử dụng AppUrls.playSong thay vì hardcode
+      final authController = Get.find<AuthController>();
+
+      // Lấy User ID thật
+      final String? userId = authController.currentUser.value?.id;
+
       final response = await http.post(
         Uri.parse(AppUrls.playSong),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'id': songId}),
+        body: jsonEncode({
+          'id': songId,
+          'userId': userId, // Gửi đúng ID thật của User
+        }),
       );
 
       if (response.statusCode == 200) {
-        print("View +1 cho bài hát: $songId");
+        final data = jsonDecode(response.body);
+        print("Trạng thái cộng view: ${data['message']}");
       } else {
         print("Lỗi server tăng view: ${response.body}");
       }
@@ -244,13 +287,9 @@ class PlayerController extends GetxController {
 
   // Cập nhật setting cho AudioPlayer
   void _updateAudioLoopMode() {
-    // Just_audio chỉ hỗ trợ loop one/off cho Single Source
-    // Loop All ta xử lý thủ công ở hàm _onSongComplete
-    if (loopMode.value == LoopMode.one) {
-      audioPlayer.setLoopMode(LoopMode.one);
-    } else {
-      audioPlayer.setLoopMode(LoopMode.off);
-    }
+    // TẮT loop mặc định của just_audio để ta tự quản lý ở hàm _onSongComplete
+    // Nhờ vậy Flutter mới biết được khoảnh khắc bài hát bắt đầu lặp lại để đếm view mới
+    audioPlayer.setLoopMode(LoopMode.off);
   }
 
   void updateMiniPlayerVisibility() {
@@ -259,6 +298,7 @@ class PlayerController extends GetxController {
 
   @override
   void onClose() {
+    _listenTimer?.cancel();
     audioPlayer.dispose();
     super.onClose();
   }
