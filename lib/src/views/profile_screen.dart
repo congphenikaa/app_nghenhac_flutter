@@ -1,6 +1,6 @@
 import 'package:app_nghenhac/src/views/edit_profile_screen.dart';
+import 'package:app_nghenhac/src/views/library_screen.dart';
 import 'package:app_nghenhac/src/views/liked_songs_screen.dart';
-import 'package:app_nghenhac/src/views/saved_playlists_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -151,7 +151,7 @@ class ProfileScreen extends StatelessWidget {
                 title: "Danh sách phát",
                 subtitle: "Của bạn và đã lưu",
                 onTap: () {
-                  Get.to(() => const SavedPlaylistsScreen());
+                  Get.to(() => const LibraryScreen());
                 },
               ),
               _buildProfileMenuItem(

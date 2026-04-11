@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:app_nghenhac/src/configs/app_urls.dart';
 import 'package:app_nghenhac/src/models/playlist_model.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LibraryController extends GetxController {
@@ -58,47 +60,115 @@ class LibraryController extends GetxController {
   }
 
   // Tạo Playlist mới
-  Future<void> createPlaylist(String name, {File? imageFile}) async {
+  Future<bool> createPlaylist(
+    String name,
+    String desc, {
+    File? imageFile,
+  }) async {
     try {
+      isLoading.value = true;
+
+      // Sử dụng lại cách lấy userId cũ của bạn cho đồng bộ
       final userId = await _getCurrentUserId();
 
       if (userId == null) {
         Get.snackbar("Lỗi", "Vui lòng đăng nhập lại");
-        return;
+        return false;
       }
 
       var request = http.MultipartRequest(
         'POST',
         Uri.parse(AppUrls.playlistCreate),
       );
-
       request.fields['name'] = name;
-      request.fields['desc'] = 'Playlist cá nhân';
+      request.fields['desc'] = desc.isEmpty ? 'Playlist cá nhân' : desc;
       request.fields['userId'] = userId;
 
       if (imageFile != null) {
-        var multipartFile = await http.MultipartFile.fromPath(
-          'image',
-          imageFile.path,
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'image',
+            imageFile.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
         );
-        request.files.add(multipartFile);
       }
 
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      var data = json.decode(responseData);
 
-      final data = json.decode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        Get.snackbar("Thành công", "Đã tạo playlist mới");
-        Get.back();
-        fetchMyPlaylists(); // Refresh danh sách
+      if (data['success'] == true) {
+        Get.snackbar(
+          "Thành công",
+          "Đã tạo playlist mới",
+          backgroundColor: const Color(0xFF1C2E24),
+          colorText: Colors.white,
+        );
+        fetchMyPlaylists(isSilent: true); // Tải lại danh sách ngầm
+        return true;
       } else {
-        Get.snackbar("Lỗi", "Không thể tạo playlist: ${data['message']}");
+        Get.snackbar("Lỗi", data['message'] ?? "Lỗi tạo playlist");
+        return false;
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Lỗi kết nối mạng: $e");
-      print(e);
+      Get.snackbar("Lỗi", "Có lỗi xảy ra: $e");
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // 2. Hàm cập nhật Playlist (MỚI)
+  Future<bool> updatePlaylist(
+    String playlistId,
+    String name,
+    String desc,
+    File? imageFile,
+  ) async {
+    try {
+      isLoading.value = true;
+
+      // Đảm bảo có đường dẫn updatePlaylist trong AppUrls (ví dụ: AppUrls.playlistUpdate)
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppUrls.baseUrl}/api/playlist/update'),
+      );
+      request.fields['playlistId'] = playlistId;
+      request.fields['name'] = name;
+      request.fields['desc'] = desc;
+
+      if (imageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'image',
+            imageFile.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      }
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      var data = json.decode(responseData);
+
+      if (data['success'] == true) {
+        Get.snackbar(
+          "Thành công",
+          "Cập nhật playlist thành công",
+          backgroundColor: const Color(0xFF1C2E24),
+          colorText: Colors.white,
+        );
+        return true;
+      } else {
+        Get.snackbar("Lỗi", data['message'] ?? "Lỗi cập nhật playlist");
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar("Lỗi", "Có lỗi xảy ra: $e");
+      return false;
+    } finally {
+      isLoading.value = false;
     }
   }
 
