@@ -82,6 +82,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   // Hiển thị BottomSheet tùy chọn
   void _showOptions(BuildContext context, SongModel song) {
+    playerController.hideMiniPlayer.value = true;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900],
@@ -149,7 +150,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           ),
         );
       },
-    );
+    ).then((_) {
+      // Khi đóng BottomSheet, hiển thị lại MiniPlayer
+      playerController.hideMiniPlayer.value = false;
+    });
   }
 
   @override

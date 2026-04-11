@@ -20,6 +20,10 @@ class MiniPlayer extends StatelessWidget {
         return const SizedBox.shrink();
       }
 
+      if (controller.hideMiniPlayer.value) {
+        return const SizedBox.shrink();
+      }
+
       final song = controller.currentSong.value!;
 
       return GestureDetector(

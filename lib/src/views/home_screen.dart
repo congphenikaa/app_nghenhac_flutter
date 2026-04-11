@@ -850,13 +850,17 @@ class HomeScreen extends StatelessWidget {
     dynamic song,
     LibraryController libraryController,
   ) {
+    final playerController = Get.find<PlayerController>();
     if (libraryController.myPlaylists.isEmpty) {
       libraryController.fetchMyPlaylists();
     }
 
+    playerController.hideMiniPlayer.value = true;
+
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.all(16),
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.only(top: 16, bottom: 16),
         decoration: BoxDecoration(
           color: Colors.grey[900],
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -867,18 +871,34 @@ class HomeScreen extends StatelessWidget {
             Container(
               width: 40,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.grey[600],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Text(
-              "Thêm vào Playlist",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 32), // Spacer để căn giữa Text
+                  const Text(
+                    "Thêm vào Playlist",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(), // Giảm padding thừa của IconButton
+                    icon: const Icon(Icons.close, color: Colors.grey, size: 26),
+                    onPressed: () => Get.back(), // Nhấn X để đóng ngay lập tức
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -931,10 +951,32 @@ class HomeScreen extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       onTap: () {
+                        // 1. LẬP TỨC ĐÓNG BOTTOM SHEET
+                        Get.back();
+
+                        // 2. GỌI API THÊM VÀO PLAYLIST
                         libraryController.addSongToPlaylist(
                           playlist.id,
                           song.id,
                         );
+
+                        // 3. Sử dụng Future.delayed ngắn để BottomSheet cũ đóng xong
+                        // mới mở Snackbar, tránh lỗi chèn route của GetX làm mất biến trạng thái
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          Get.snackbar(
+                            "Thành công",
+                            "Đã thêm vào Playlist ${playlist.name}",
+                            backgroundColor: const Color(0xFF1C2E24),
+                            colorText: Colors.white,
+                            snackPosition: SnackPosition.TOP,
+                            duration: const Duration(seconds: 2),
+                            margin: const EdgeInsets.all(12),
+                            icon: const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF30e87a),
+                            ),
+                          );
+                        });
                       },
                     );
                   },
@@ -945,7 +987,11 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       isScrollControlled: true,
-    );
+    ).whenComplete(() {
+      // Dùng whenComplete thay vì then để ĐẢM BẢO đoạn này luôn được chạy
+      playerController.hideMiniPlayer.value = false;
+    });
+    ;
   }
 
   Widget _buildSongItem(
@@ -1011,6 +1057,11 @@ class HomeScreen extends StatelessWidget {
     LibraryController libraryController,
     AuthController authController,
   ) {
+    // ẨN MINIPLAYER
+    playerController.hideMiniPlayer.value = true;
+
+    // Biến cờ này giúp nhận biết khi ta mở một BottomSheet KHÁC từ bên trong
+    bool isTransitioning = false;
     Get.bottomSheet(
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -1021,6 +1072,15 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             // HEADER: Ảnh và Tên bài hát
             Row(
               children: [
@@ -1126,15 +1186,29 @@ class HomeScreen extends StatelessWidget {
                 style: TextStyle(color: Colors.white),
               ),
               onTap: () {
+                isTransitioning = true;
                 Get.back(); // Đóng menu option trước
                 // Mở menu playlist cũ của bạn
-                _showAddToPlaylistBottomSheet(context, song, libraryController);
+                // Đợi 300ms cho menu Option đóng xong mới mở menu Thêm Playlist
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  _showAddToPlaylistBottomSheet(
+                    context,
+                    song,
+                    libraryController,
+                  );
+                });
               },
             ),
           ],
         ),
       ),
       isScrollControlled: true,
-    );
+    ).whenComplete(() {
+      // Dùng whenComplete, và CHỈ đổi lại false nếu không phải đang chuyển qua BottomSheet khác
+      // Nếu không có check này thì lúc chuyển giao 2 cái BottomSheet cái MiniPlayer sẽ bị nhấp nháy
+      if (!isTransitioning) {
+        playerController.hideMiniPlayer.value = false;
+      }
+    });
   }
 }

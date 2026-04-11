@@ -19,6 +19,8 @@ class PlayerController extends GetxController {
   var totalDuration = Duration.zero.obs;
   var miniPlayerHeight = 0.0.obs;
   var isPlayerScreenOpen = false.obs;
+  // Thêm biến này để điều khiển việc ẩn/hiện MiniPlayer
+  var hideMiniPlayer = false.obs;
 
   // Quản lý Playlist
   var currentSong = Rxn<SongModel>();
