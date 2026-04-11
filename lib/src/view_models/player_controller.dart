@@ -38,8 +38,35 @@ class PlayerController extends GetxController {
   var currentIndex = 0.obs;
 
   // --- CÁC BIẾN QUẢN LÝ SHUFFLE CHUẨN ---
-  List<int> _shuffledIndices = [];
-  int _currentShuffleIndex = 0;
+  var shuffledIndices = <int>[].obs;
+  var currentShuffleIndex = 0.obs;
+
+  // --- GETTER: Lấy danh sách các bài hát đang chờ phát (Queue) ---
+  List<SongModel> get upcomingSongs {
+    if (playlist.isEmpty) return [];
+
+    final isShuffle = isShuffleMode.value;
+    final cIndex = currentIndex.value;
+
+    List<SongModel> upcoming = [];
+
+    if (isShuffle) {
+      // Nếu trộn bài: Lấy các bài tiếp theo trong mảng đã trộn
+      for (
+        int i = currentShuffleIndex.value + 1;
+        i < shuffledIndices.length;
+        i++
+      ) {
+        upcoming.add(playlist[shuffledIndices[i]]);
+      }
+    } else {
+      // Nếu bình thường: Lấy các bài tiếp theo trong playlist gốc
+      for (int i = cIndex + 1; i < playlist.length; i++) {
+        upcoming.add(playlist[i]);
+      }
+    }
+    return upcoming;
+  }
 
   // Chế độ phát
   var isShuffleMode = false.obs;
@@ -158,10 +185,14 @@ class PlayerController extends GetxController {
 
   Future<void> playSong(SongModel song, {List<SongModel>? newQueue}) async {
     try {
+      bool isPlaylistChanged = false;
+
       if (newQueue != null && newQueue.isNotEmpty) {
         playlist.value = newQueue;
+        isPlaylistChanged = true;
       } else if (playlist.isEmpty) {
         playlist.value = [song];
+        isPlaylistChanged = true;
       }
 
       int index = playlist.indexWhere((s) => s.id == song.id);
@@ -170,12 +201,27 @@ class PlayerController extends GetxController {
       } else {
         playlist.add(song);
         currentIndex.value = playlist.length - 1;
+        isPlaylistChanged = true;
+      }
+
+      // XỬ LÝ LOGIC SHUFFLE CHUẨN KHI GỌI TỪ OBSERVABLE
+      if (isShuffleMode.value) {
+        if (isPlaylistChanged || shuffledIndices.length != playlist.length) {
+          shuffledIndices.value = List.generate(playlist.length, (i) => i);
+          shuffledIndices.shuffle();
+          shuffledIndices.remove(currentIndex.value);
+          shuffledIndices.insert(0, currentIndex.value);
+          currentShuffleIndex.value = 0;
+        } else {
+          int sIndex = shuffledIndices.indexOf(currentIndex.value);
+          if (sIndex != -1) {
+            currentShuffleIndex.value = sIndex;
+          }
+        }
       }
 
       currentSong.value = song;
       updateMiniPlayerVisibility();
-
-      // GỌI HÀM CẬP NHẬT MÀU NỀN
       updateDominantColor(song.imageUrl);
 
       final audioSource = AudioSource.uri(
@@ -259,23 +305,20 @@ class PlayerController extends GetxController {
     int nextIndex;
     if (isShuffleMode.value) {
       if (playlist.length > 1) {
-        _currentShuffleIndex++;
-        // Nếu đã nghe hết danh sách trộn
-        if (_currentShuffleIndex >= _shuffledIndices.length) {
+        currentShuffleIndex.value++;
+        if (currentShuffleIndex.value >= shuffledIndices.length) {
           if (loopMode.value == LoopMode.all) {
-            // Trộn lại từ đầu và phát bài đầu tiên của list mới
-            _shuffledIndices.shuffle();
-            _currentShuffleIndex = 0;
-            nextIndex = _shuffledIndices[_currentShuffleIndex];
+            shuffledIndices.shuffle();
+            currentShuffleIndex.value = 0;
+            nextIndex = shuffledIndices[currentShuffleIndex.value];
           } else {
-            // Dừng phát nếu không bật lặp lại
-            _currentShuffleIndex--; // Trả lại index cũ
+            currentShuffleIndex.value--; // Trả lại index cũ
             audioPlayer.pause();
             audioPlayer.seek(Duration.zero);
             return;
           }
         } else {
-          nextIndex = _shuffledIndices[_currentShuffleIndex];
+          nextIndex = shuffledIndices[currentShuffleIndex.value];
         }
       } else {
         nextIndex = 0;
@@ -306,12 +349,11 @@ class PlayerController extends GetxController {
     int prevIndex;
     if (isShuffleMode.value) {
       if (playlist.length > 1) {
-        _currentShuffleIndex--;
-        // Nếu lùi quá bài đầu tiên trong list trộn -> Quay về bài cuối
-        if (_currentShuffleIndex < 0) {
-          _currentShuffleIndex = _shuffledIndices.length - 1;
+        currentShuffleIndex.value--;
+        if (currentShuffleIndex.value < 0) {
+          currentShuffleIndex.value = shuffledIndices.length - 1;
         }
-        prevIndex = _shuffledIndices[_currentShuffleIndex];
+        prevIndex = shuffledIndices[currentShuffleIndex.value];
       } else {
         prevIndex = 0;
       }
@@ -327,14 +369,12 @@ class PlayerController extends GetxController {
 
   void toggleShuffle() {
     isShuffleMode.value = !isShuffleMode.value;
-    // Khởi tạo ngay danh sách trộn khi bật Shuffle
     if (isShuffleMode.value && playlist.isNotEmpty) {
-      _shuffledIndices = List.generate(playlist.length, (i) => i);
-      _shuffledIndices.shuffle();
-      // Đưa bài hiện tại lên đầu
-      _shuffledIndices.remove(currentIndex.value);
-      _shuffledIndices.insert(0, currentIndex.value);
-      _currentShuffleIndex = 0;
+      shuffledIndices.value = List.generate(playlist.length, (i) => i);
+      shuffledIndices.shuffle();
+      shuffledIndices.remove(currentIndex.value);
+      shuffledIndices.insert(0, currentIndex.value);
+      currentShuffleIndex.value = 0;
     }
   }
 
