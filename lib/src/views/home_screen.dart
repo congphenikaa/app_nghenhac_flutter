@@ -435,7 +435,7 @@ class HomeScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final song = displayList[index];
           return GestureDetector(
-            onTap: () => playerController.playSong(song),
+            onTap: () => playerController.playSong(song, newQueue: songs),
             child: Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF1C2E24), // Màu nền xanh đen bạn thích
@@ -1044,7 +1044,10 @@ class HomeScreen extends StatelessWidget {
             authController,
           ),
         ),
-        onTap: () => playerController.playSong(song),
+        onTap: () => playerController.playSong(
+          song,
+          newQueue: Get.find<HomeController>().songList,
+        ),
       ),
     );
   }

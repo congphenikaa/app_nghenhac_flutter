@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import '../view_models/player_controller.dart';
+import 'add_edit_playlist_screen.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final String playlistId;
@@ -27,17 +28,22 @@ class PlaylistDetailScreen extends StatefulWidget {
 class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   var songs = <SongModel>[];
   var isLoading = true;
+
+  String _currentName = "";
+  String _currentDesc = "";
+  String _currentImageUrl = "";
+
   final PlayerController playerController = Get.find<PlayerController>();
-  // Tìm LibraryController để gọi hàm xóa
   final LibraryController libraryController = Get.find<LibraryController>();
 
   @override
   void initState() {
     super.initState();
+    _currentName = widget.playlistName;
+    _currentImageUrl = widget.imageUrl;
     fetchPlaylistDetails();
   }
 
-  // Gọi API lấy chi tiết playlist
   void fetchPlaylistDetails() async {
     try {
       final url = '${AppUrls.playlistDetail}/${widget.playlistId}';
@@ -52,6 +58,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           if (mounted) {
             setState(() {
               songs = list.map((e) => SongModel.fromJson(e)).toList();
+              _currentName = playlistData['name'] ?? _currentName;
+              _currentDesc = playlistData['description'] ?? "";
+              _currentImageUrl = playlistData['image'] ?? _currentImageUrl;
+
               isLoading = false;
             });
           }
@@ -63,34 +73,33 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
   }
 
-  // Hàm xử lý xóa bài hát
   void _removeSong(String songId) async {
-    // Gọi hàm xóa trong controller
     bool success = await libraryController.removeSongFromPlaylist(
       widget.playlistId,
       songId,
     );
 
     if (success) {
-      // Nếu thành công, cập nhật UI ngay lập tức
       setState(() {
         songs.removeWhere((s) => s.id == songId);
       });
-      Get.snackbar("Thành công", "Đã xóa bài hát khỏi playlist");
+      Get.snackbar(
+        "Thành công",
+        "Đã xóa bài hát khỏi playlist",
+        backgroundColor: const Color(0xFF1C2E24),
+        colorText: Colors.white,
+      );
     }
   }
 
-  // Hiển thị BottomSheet tùy chọn
-  void _showOptions(BuildContext context, SongModel song) {
+  // ĐÃ TỐI ƯU: Xóa tham số BuildContext thừa, dùng Get.bottomSheet
+  void _showOptions(SongModel song) {
     playerController.hideMiniPlayer.value = true;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.only(bottom: 10), // Tránh lẹm viền dưới
+        child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -141,17 +150,22 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   style: TextStyle(color: Colors.white),
                 ),
                 onTap: () {
-                  Navigator.pop(context); // Đóng modal
-                  _removeSong(song.id); // Gọi hàm xóa
+                  Get.back(); // ĐÃ TỐI ƯU: Thay Navigator.pop(context)
+                  _removeSong(song.id);
                 },
               ),
               const SizedBox(height: 10),
             ],
           ),
-        );
-      },
-    ).then((_) {
-      // Khi đóng BottomSheet, hiển thị lại MiniPlayer
+        ),
+      ),
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+    ).whenComplete(() {
+      // ĐÃ TỐI ƯU: Thay .then() thành .whenComplete() để tránh kẹt MiniPlayer
       playerController.hideMiniPlayer.value = false;
     });
   }
@@ -166,17 +180,34 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             expandedHeight: 300,
             pinned: true,
             backgroundColor: Colors.black,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.playlistName,
-                style: const TextStyle(fontSize: 16),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                onPressed: () {
+                  Get.to(
+                    () => AddEditPlaylistScreen(
+                      playlistId: widget.playlistId,
+                      initialName: _currentName,
+                      initialDesc: _currentDesc,
+                      initialImageUrl: _currentImageUrl,
+                    ),
+                  )?.then((isUpdated) {
+                    if (isUpdated == true) {
+                      fetchPlaylistDetails();
+                      libraryController.fetchMyPlaylists(isSilent: true);
+                    }
+                  });
+                },
               ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(_currentName, style: const TextStyle(fontSize: 16)),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  widget.imageUrl.isNotEmpty
+                  _currentImageUrl.isNotEmpty
                       ? CachedNetworkImage(
-                          imageUrl: widget.imageUrl,
+                          imageUrl: _currentImageUrl,
                           fit: BoxFit.cover,
                         )
                       : Container(
@@ -245,9 +276,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.more_vert, color: Colors.grey),
-                  onPressed: () => _showOptions(context, song),
+                  onPressed: () => _showOptions(song), // ĐÃ TỐI ƯU: Bỏ context
                 ),
-                onTap: () => playerController.playSong(song),
+                onTap: () => playerController.playSong(song, newQueue: songs),
               );
             }, childCount: isLoading ? 1 : (songs.isEmpty ? 1 : songs.length)),
           ),

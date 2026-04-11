@@ -2,55 +2,64 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:async';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:palette_generator/palette_generator.dart';
 import '../configs/app_urls.dart';
 
 class PlayerController extends GetxController {
   final AudioPlayer audioPlayer = AudioPlayer();
 
-  // Biến UI
+  // Biến UI cơ bản
   var isPlaying = false.obs;
   var progress = Duration.zero.obs;
   var buffered = Duration.zero.obs;
   var totalDuration = Duration.zero.obs;
   var miniPlayerHeight = 0.0.obs;
   var isPlayerScreenOpen = false.obs;
-  // Thêm biến này để điều khiển việc ẩn/hiện MiniPlayer
   var hideMiniPlayer = false.obs;
+
+  // --- CÁC BIẾN MỚI CHO TÍNH NĂNG NHÓM 1 ---
+  var dominantColor = const Color(0xFF121212).obs; // Đổi màu nền
+  var playbackSpeed = 1.0.obs; // Chỉnh tốc độ phát
+  var isTimerActive = false.obs; // Theo dõi trạng thái bật/tắt hẹn giờ
+  var pauseOnSongEnd = false.obs; // Hẹn giờ: Hết bài thì tắt
+  Timer? _sleepTimer; // Bộ đếm lùi
+  var selectedSleepMinutes = (-1).obs; // Số phút hẹn giờ, -1 = chưa chọn
 
   // Quản lý Playlist
   var currentSong = Rxn<SongModel>();
-  var playlist = <SongModel>[].obs; // Danh sách bài hát đang chờ phát
-  var currentIndex = 0.obs; // Vị trí bài hiện tại
+  var playlist = <SongModel>[].obs;
+  var currentIndex = 0.obs;
+
+  // --- CÁC BIẾN QUẢN LÝ SHUFFLE CHUẨN ---
+  List<int> _shuffledIndices = [];
+  int _currentShuffleIndex = 0;
 
   // Chế độ phát
   var isShuffleMode = false.obs;
-  var loopMode = LoopMode.off.obs; // off, all, one
+  var loopMode = LoopMode.off.obs;
 
   // Biến đếm lượt nghe
   Timer? _listenTimer;
-  int _listenDuration = 0; // Đếm số giây người dùng THỰC SỰ NGHE
-  bool _hasCountedView = false; // Cờ đánh dấu đã cộng view cho bài này chưa
+  int _listenDuration = 0;
+  bool _hasCountedView = false;
 
   @override
   void onInit() {
     super.onInit();
-
-    // 1. Lắng nghe trạng thái phát
     audioPlayer.playerStateStream.listen((state) {
       isPlaying.value = state.playing;
-
-      // Tự động chuyển bài khi hết bài
       if (state.processingState == ProcessingState.completed) {
         _onSongComplete();
       }
     });
 
-    // 2. Lắng nghe tiến độ
     audioPlayer.positionStream.listen((position) {
       progress.value = position;
     });
@@ -66,45 +75,99 @@ class PlayerController extends GetxController {
     });
   }
 
-  // Xử lý khi bài hát kết thúc
-  void _onSongComplete() {
-    if (loopMode.value == LoopMode.one) {
-      // --- XỬ LÝ LẶP LẠI (REPEAT ONE) THỦ CÔNG ---
-      audioPlayer.seek(Duration.zero);
+  // --- TÍNH NĂNG 1: TRÍCH XUẤT MÀU NỀN TỪ ẢNH BÌA ---
+  Future<void> updateDominantColor(String imageUrl) async {
+    if (imageUrl.isEmpty) return;
+    try {
+      final PaletteGenerator generator =
+          await PaletteGenerator.fromImageProvider(
+            CachedNetworkImageProvider(imageUrl),
+          );
+      // Lấy màu chủ đạo, nếu không lấy được dùng màu mặc định
+      dominantColor.value =
+          generator.dominantColor?.color ?? const Color(0xFF121212);
+    } catch (e) {
+      dominantColor.value = const Color(0xFF121212);
+    }
+  }
 
-      // BẮT BUỘC: Reset lại bộ đếm để tính view cho vòng lặp thứ 2
+  // --- TÍNH NĂNG 4: THAY ĐỔI TỐC ĐỘ PHÁT ---
+  void changeSpeed(double speed) {
+    playbackSpeed.value = speed;
+    audioPlayer.setSpeed(speed);
+  }
+
+  // --- TÍNH NĂNG 2: HẸN GIỜ TẮT NHẠC ---
+  void setSleepTimer(int minutes) {
+    cancelSleepTimer(); // Xóa timer cũ nếu có
+    isTimerActive.value = true; // Bật cờ UI
+
+    if (minutes == 0) {
+      // 0 phút: Dừng khi hết bài
+      pauseOnSongEnd.value = true;
+      Get.snackbar(
+        "Hẹn giờ tắt",
+        "Sẽ dừng nhạc sau khi hết bài hát này",
+        icon: const Icon(Icons.timer, color: Colors.white),
+        backgroundColor: const Color(0xFF1C2E24),
+        colorText: Colors.white,
+      );
+    } else {
+      Get.snackbar(
+        "Hẹn giờ tắt",
+        "Sẽ dừng nhạc sau $minutes phút",
+        icon: const Icon(Icons.timer, color: Colors.white),
+        backgroundColor: const Color(0xFF1C2E24),
+        colorText: Colors.white,
+      );
+      _sleepTimer = Timer(Duration(minutes: minutes), () {
+        audioPlayer.pause();
+        cancelSleepTimer();
+      });
+    }
+  }
+
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    pauseOnSongEnd.value = false;
+    isTimerActive.value = false;
+  }
+
+  // CẬP NHẬT KHI KẾT THÚC BÀI HÁT (Kiểm tra Hẹn giờ)
+  void _onSongComplete() {
+    // Nếu có cờ "Hết bài thì tắt" -> Tắt nhạc
+    if (pauseOnSongEnd.value == true) {
+      audioPlayer.pause();
+      cancelSleepTimer();
+      return;
+    }
+
+    if (loopMode.value == LoopMode.one) {
+      audioPlayer.seek(Duration.zero);
       _hasCountedView = false;
       _listenDuration = 0;
       _listenTimer?.cancel();
-
-      // Bật lại đồng hồ bấm giờ 30s
       if (currentSong.value != null) {
         _startPlayCountListener(currentSong.value!.id);
       }
-
       audioPlayer.play();
     } else {
       nextSong();
     }
   }
 
-  // Hàm phát nhạc (Cập nhật để nhận Playlist)
   Future<void> playSong(SongModel song, {List<SongModel>? newQueue}) async {
     try {
-      // Nếu có danh sách mới được truyền vào (ví dụ bấm từ Album/Playlist)
       if (newQueue != null && newQueue.isNotEmpty) {
         playlist.value = newQueue;
       } else if (playlist.isEmpty) {
-        // Nếu chưa có playlist, tạo playlist 1 bài
         playlist.value = [song];
       }
 
-      // Cập nhật index hiện tại
       int index = playlist.indexWhere((s) => s.id == song.id);
       if (index != -1) {
         currentIndex.value = index;
       } else {
-        // Nếu bài hát không có trong playlist hiện tại, thêm vào cuối và phát
         playlist.add(song);
         currentIndex.value = playlist.length - 1;
       }
@@ -112,11 +175,12 @@ class PlayerController extends GetxController {
       currentSong.value = song;
       updateMiniPlayerVisibility();
 
-      // [UPDATE] Tạo AudioSource có gắn thẻ MediaItem để hiển thị Notification
+      // GỌI HÀM CẬP NHẬT MÀU NỀN
+      updateDominantColor(song.imageUrl);
+
       final audioSource = AudioSource.uri(
         Uri.parse(song.audioUrl),
         tag: MediaItem(
-          // ID là bắt buộc và phải là unique string
           id: song.id,
           album: song.album,
           title: song.title,
@@ -125,42 +189,29 @@ class PlayerController extends GetxController {
         ),
       );
 
-      // Set Audio Source mới
       await audioPlayer.setAudioSource(audioSource);
-
-      // Set lại chế độ lặp cho source mới
       _updateAudioLoopMode();
 
-      // --- RESET BỘ ĐẾM KHI CHUYỂN BÀI MỚI ---
       _hasCountedView = false;
       _listenDuration = 0;
-      _listenTimer?.cancel(); // Hủy đồng hồ bấm giờ của bài cũ
-
+      _listenTimer?.cancel();
       audioPlayer.play();
-
-      // Gọi hàm đếm lượt nghe
       _startPlayCountListener(song.id);
     } catch (e) {
-      print("Lỗi phát nhạc: $e");
+      debugPrint("Lỗi phát nhạc: $e");
     }
   }
 
   void _startPlayCountListener(String songId) {
-    // Dùng Timer chạy mỗi 1 giây để đếm thời gian nghe thực tế
     _listenTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      // 1. Nếu đã đếm xong rồi thì tắt Timer luôn cho nhẹ máy
       if (_hasCountedView) {
         timer.cancel();
         return;
       }
-
-      // 2. Chỉ tính thời gian khi bài hát ĐANG PHÁT (không pause, không buffering)
       if (audioPlayer.playing &&
           audioPlayer.processingState == ProcessingState.ready) {
         _listenDuration++;
       }
-
-      // 3. Đạt đúng 30 giây NGHE THỰC TẾ thì mới gọi API
       if (_listenDuration >= 30) {
         _hasCountedView = true;
         _incrementPlayCountApi(songId);
@@ -172,27 +223,20 @@ class PlayerController extends GetxController {
   Future<void> _incrementPlayCountApi(String songId) async {
     try {
       final authController = Get.find<AuthController>();
-
-      // Lấy User ID thật
       final String? userId = authController.currentUser.value?.id;
 
       final response = await http.post(
         Uri.parse(AppUrls.playSong),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'id': songId,
-          'userId': userId, // Gửi đúng ID thật của User
-        }),
+        body: jsonEncode({'id': songId, 'userId': userId}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("Trạng thái cộng view: ${data['message']}");
-      } else {
-        print("Lỗi server tăng view: ${response.body}");
+        debugPrint("Trạng thái cộng view: ${data['message']}");
       }
     } catch (e) {
-      print("Lỗi kết nối tăng view: $e");
+      debugPrint("Lỗi kết nối tăng view: $e");
     }
   }
 
@@ -208,70 +252,92 @@ class PlayerController extends GetxController {
     audioPlayer.seek(position);
   }
 
-  // --- LOGIC ĐIỀU KHIỂN NÂNG CAO ---
-
-  // 1. Next Song
+  // --- TÍNH NĂNG 3: CHUYỂN BÀI MƯỢT MÀ VÀ SHUFFLE CHUẨN K BỊ LẶP ---
   void nextSong() {
     if (playlist.isEmpty) return;
 
     int nextIndex;
-
     if (isShuffleMode.value) {
-      // Random bài khác bài hiện tại
       if (playlist.length > 1) {
-        do {
-          nextIndex = Random().nextInt(playlist.length);
-        } while (nextIndex == currentIndex.value);
+        _currentShuffleIndex++;
+        // Nếu đã nghe hết danh sách trộn
+        if (_currentShuffleIndex >= _shuffledIndices.length) {
+          if (loopMode.value == LoopMode.all) {
+            // Trộn lại từ đầu và phát bài đầu tiên của list mới
+            _shuffledIndices.shuffle();
+            _currentShuffleIndex = 0;
+            nextIndex = _shuffledIndices[_currentShuffleIndex];
+          } else {
+            // Dừng phát nếu không bật lặp lại
+            _currentShuffleIndex--; // Trả lại index cũ
+            audioPlayer.pause();
+            audioPlayer.seek(Duration.zero);
+            return;
+          }
+        } else {
+          nextIndex = _shuffledIndices[_currentShuffleIndex];
+        }
       } else {
         nextIndex = 0;
       }
     } else {
-      // Tuần tự
       nextIndex = currentIndex.value + 1;
-    }
-
-    // Kiểm tra hết danh sách
-    if (nextIndex >= playlist.length) {
-      if (loopMode.value == LoopMode.all) {
-        nextIndex = 0; // Quay lại đầu
-      } else {
-        // Dừng lại nếu không lặp
-        audioPlayer.pause();
-        audioPlayer.seek(Duration.zero);
-        return;
+      if (nextIndex >= playlist.length) {
+        if (loopMode.value == LoopMode.all) {
+          nextIndex = 0;
+        } else {
+          audioPlayer.pause();
+          audioPlayer.seek(Duration.zero);
+          return;
+        }
       }
     }
 
-    // Phát bài tiếp theo (giữ nguyên queue cũ)
     playSong(playlist[nextIndex]);
   }
 
-  // 2. Previous Song
   void previousSong() {
-    // Nếu đã nghe quá 5 giây -> Replay bài hiện tại
     if (audioPlayer.position.inSeconds > 5) {
       audioPlayer.seek(Duration.zero);
       return;
     }
-
     if (playlist.isEmpty) return;
 
-    int prevIndex = currentIndex.value - 1;
-
-    // Nếu đang ở bài đầu -> Quay về bài cuối (hoặc dừng tùy logic)
-    if (prevIndex < 0) {
-      prevIndex = playlist.length - 1;
+    int prevIndex;
+    if (isShuffleMode.value) {
+      if (playlist.length > 1) {
+        _currentShuffleIndex--;
+        // Nếu lùi quá bài đầu tiên trong list trộn -> Quay về bài cuối
+        if (_currentShuffleIndex < 0) {
+          _currentShuffleIndex = _shuffledIndices.length - 1;
+        }
+        prevIndex = _shuffledIndices[_currentShuffleIndex];
+      } else {
+        prevIndex = 0;
+      }
+    } else {
+      prevIndex = currentIndex.value - 1;
+      if (prevIndex < 0) {
+        prevIndex = playlist.length - 1;
+      }
     }
 
     playSong(playlist[prevIndex]);
   }
 
-  // 3. Toggle Shuffle
   void toggleShuffle() {
     isShuffleMode.value = !isShuffleMode.value;
+    // Khởi tạo ngay danh sách trộn khi bật Shuffle
+    if (isShuffleMode.value && playlist.isNotEmpty) {
+      _shuffledIndices = List.generate(playlist.length, (i) => i);
+      _shuffledIndices.shuffle();
+      // Đưa bài hiện tại lên đầu
+      _shuffledIndices.remove(currentIndex.value);
+      _shuffledIndices.insert(0, currentIndex.value);
+      _currentShuffleIndex = 0;
+    }
   }
 
-  // 4. Toggle Repeat (Off -> All -> One -> Off)
   void cycleLoopMode() {
     switch (loopMode.value) {
       case LoopMode.off:
@@ -287,10 +353,7 @@ class PlayerController extends GetxController {
     _updateAudioLoopMode();
   }
 
-  // Cập nhật setting cho AudioPlayer
   void _updateAudioLoopMode() {
-    // TẮT loop mặc định của just_audio để ta tự quản lý ở hàm _onSongComplete
-    // Nhờ vậy Flutter mới biết được khoảnh khắc bài hát bắt đầu lặp lại để đếm view mới
     audioPlayer.setLoopMode(LoopMode.off);
   }
 
@@ -301,6 +364,7 @@ class PlayerController extends GetxController {
   @override
   void onClose() {
     _listenTimer?.cancel();
+    _sleepTimer?.cancel(); // Hủy Timer nếu app đóng
     audioPlayer.dispose();
     super.onClose();
   }

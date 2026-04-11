@@ -193,7 +193,10 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                       FloatingActionButton(
                         onPressed: () {
                           if (topSongs.isNotEmpty) {
-                            playerController.playSong(topSongs[0]);
+                            playerController.playSong(
+                              topSongs[0],
+                              newQueue: topSongs,
+                            );
                           } else {
                             Get.snackbar(
                               "Thông báo",
@@ -423,7 +426,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                         ),
                       ),
                       trailing: const Icon(Icons.more_vert, color: Colors.grey),
-                      onTap: () => playerController.playSong(song),
+                      onTap: () =>
+                          playerController.playSong(song, newQueue: topSongs),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                       ),

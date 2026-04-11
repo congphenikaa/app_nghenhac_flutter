@@ -112,7 +112,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                   // Nút Play All
                   ElevatedButton(
                     onPressed: songs.isNotEmpty
-                        ? () => playerController.playSong(songs[0])
+                        ? () => playerController.playSong(
+                            songs[0],
+                            newQueue: songs,
+                          )
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF30e87a),
@@ -165,7 +168,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 trailing: const Icon(Icons.more_vert, color: Colors.grey),
-                onTap: () => playerController.playSong(song),
+                onTap: () => playerController.playSong(song, newQueue: songs),
               );
             }, childCount: isLoading ? 1 : (songs.isEmpty ? 1 : songs.length)),
           ),
