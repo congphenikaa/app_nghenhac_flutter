@@ -32,6 +32,9 @@ class PlayerController extends GetxController {
   Timer? _sleepTimer; // Bộ đếm lùi
   var selectedSleepMinutes = (-1).obs; // Số phút hẹn giờ, -1 = chưa chọn
 
+  // Khóa chống dội sự kiện (Debounce) cho just_audio
+  bool _isProcessingCompletion = false;
+
   // Quản lý Playlist
   var currentSong = Rxn<SongModel>();
   var playlist = <SongModel>[].obs;
@@ -41,30 +44,54 @@ class PlayerController extends GetxController {
   var shuffledIndices = <int>[].obs;
   var currentShuffleIndex = 0.obs;
 
-  // --- GETTER: Lấy danh sách các bài hát đang chờ phát (Queue) ---
+  // --- NÂNG CẤP: DANH SÁCH CHỜ CHUẨN SPOTIFY ---
   List<SongModel> get upcomingSongs {
     if (playlist.isEmpty) return [];
 
     final isShuffle = isShuffleMode.value;
     final cIndex = currentIndex.value;
+    final isLoopAll =
+        loopMode.value == LoopMode.all; // Kiểm tra có bật lặp không
 
     List<SongModel> upcoming = [];
 
+    // Số lượng bài hiển thị tối đa trong Queue để tránh lag UI nếu playlist quá dài (ví dụ: 1000 bài)
+    const int maxQueueDisplay = 30;
+
     if (isShuffle) {
-      // Nếu trộn bài: Lấy các bài tiếp theo trong mảng đã trộn
+      // 1. Lấy phần còn lại của danh sách đang trộn
       for (
         int i = currentShuffleIndex.value + 1;
         i < shuffledIndices.length;
         i++
       ) {
         upcoming.add(playlist[shuffledIndices[i]]);
+        if (upcoming.length >= maxQueueDisplay) return upcoming;
+      }
+
+      // 2. NẾU BẬT LẶP LẠI -> Cuốn chiếu các bài đã nghe lên phía sau
+      if (isLoopAll) {
+        for (int i = 0; i <= currentShuffleIndex.value; i++) {
+          upcoming.add(playlist[shuffledIndices[i]]);
+          if (upcoming.length >= maxQueueDisplay) return upcoming;
+        }
       }
     } else {
-      // Nếu bình thường: Lấy các bài tiếp theo trong playlist gốc
+      // 1. Lấy phần còn lại của danh sách gốc
       for (int i = cIndex + 1; i < playlist.length; i++) {
         upcoming.add(playlist[i]);
+        if (upcoming.length >= maxQueueDisplay) return upcoming;
+      }
+
+      // 2. NẾU BẬT LẶP LẠI -> Cuốn chiếu từ đầu playlist
+      if (isLoopAll) {
+        for (int i = 0; i <= cIndex; i++) {
+          upcoming.add(playlist[i]);
+          if (upcoming.length >= maxQueueDisplay) return upcoming;
+        }
       }
     }
+
     return upcoming;
   }
 
@@ -127,14 +154,14 @@ class PlayerController extends GetxController {
   // --- TÍNH NĂNG 2: HẸN GIỜ TẮT NHẠC ---
   void setSleepTimer(int minutes) {
     cancelSleepTimer(); // Xóa timer cũ nếu có
-    isTimerActive.value = true; // Bật cờ UI
+    isTimerActive.value = true;
+    selectedSleepMinutes.value = minutes; // Đồng bộ UI Menu
 
     if (minutes == 0) {
-      // 0 phút: Dừng khi hết bài
       pauseOnSongEnd.value = true;
       Get.snackbar(
         "Hẹn giờ tắt",
-        "Sẽ dừng nhạc sau khi hết bài hát này",
+        "Sẽ dừng nhạc và thông báo sau khi hết bài hát này",
         icon: const Icon(Icons.timer, color: Colors.white),
         backgroundColor: const Color(0xFF1C2E24),
         colorText: Colors.white,
@@ -142,14 +169,15 @@ class PlayerController extends GetxController {
     } else {
       Get.snackbar(
         "Hẹn giờ tắt",
-        "Sẽ dừng nhạc sau $minutes phút",
+        "Sẽ dừng nhạc và thông báo sau $minutes phút",
         icon: const Icon(Icons.timer, color: Colors.white),
         backgroundColor: const Color(0xFF1C2E24),
         colorText: Colors.white,
       );
+
+      // Khởi tạo đếm lùi
       _sleepTimer = Timer(Duration(minutes: minutes), () {
-        audioPlayer.pause();
-        cancelSleepTimer();
+        _triggerTimerStop(); // Hết phút -> Gọi popup thông báo và tắt nhạc
       });
     }
   }
@@ -158,19 +186,81 @@ class PlayerController extends GetxController {
     _sleepTimer?.cancel();
     pauseOnSongEnd.value = false;
     isTimerActive.value = false;
+    selectedSleepMinutes.value = -1; // Reset UI Menu về trạng thái chưa chọn
+  }
+
+  // --- HÀM XỬ LÝ KHI HẾT THỜI GIAN HOẶC HẾT BÀI ---
+  Future<void> _triggerTimerStop() async {
+    // 1. Dừng nhạc
+    await audioPlayer.pause();
+
+    // 2. FIX BUG MẤT KIỂM SOÁT: Đưa con trỏ nhạc về 0 để ép just_audio xóa trạng thái "completed"
+    await audioPlayer.seek(Duration.zero);
+
+    // 3. Reset các biến UI (đưa bộ đếm về -1)
+    cancelSleepTimer();
+
+    // 4. Hiển thị Popup thông báo ở giữa màn hình
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Column(
+          children: [
+            Icon(Icons.timer_off, color: Color(0xFF30e87a), size: 48),
+            SizedBox(height: 12),
+            Text(
+              "Đã tắt nhạc",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Đã hết thời gian hẹn giờ.\nỨng dụng đã tự động dừng phát nhạc.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF30e87a),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            onPressed: () {
+              if (Get.isDialogOpen == true) Get.back(); // Đóng popup
+            },
+            child: const Text(
+              "Đóng",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: false, // Bắt buộc người dùng phải bấm nút Đóng
+    );
   }
 
   // CẬP NHẬT KHI KẾT THÚC BÀI HÁT (Kiểm tra Hẹn giờ)
-  void _onSongComplete() {
-    // Nếu có cờ "Hết bài thì tắt" -> Tắt nhạc
-    if (pauseOnSongEnd.value == true) {
-      audioPlayer.pause();
-      cancelSleepTimer();
-      return;
-    }
+  void _onSongComplete() async {
+    // 1. NẾU ĐANG XỬ LÝ RỒI THÌ CHẶN LUÔN, KHÔNG CHO CHẠY LẦN 2
+    if (_isProcessingCompletion) return;
 
-    if (loopMode.value == LoopMode.one) {
-      audioPlayer.seek(Duration.zero);
+    // Khóa lại
+    _isProcessingCompletion = true;
+
+    // 2. Chạy logic
+    if (pauseOnSongEnd.value == true) {
+      await _triggerTimerStop(); // Phải có await
+    } else if (loopMode.value == LoopMode.one) {
+      await audioPlayer.seek(Duration.zero);
       _hasCountedView = false;
       _listenDuration = 0;
       _listenTimer?.cancel();
@@ -181,10 +271,27 @@ class PlayerController extends GetxController {
     } else {
       nextSong();
     }
+
+    // 3. MỞ KHÓA SAU 500 MỖI NGHÌN GIÂY (0.5s)
+    // Khoảng thời gian này đủ để các tín hiệu "ảo" của just_audio trôi qua hết
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _isProcessingCompletion = false;
+    });
   }
 
   Future<void> playSong(SongModel song, {List<SongModel>? newQueue}) async {
     try {
+      if (pauseOnSongEnd.value == true) {
+        cancelSleepTimer();
+        Get.snackbar(
+          "Đã hủy hẹn giờ",
+          "Hẹn giờ tắt nhạc bị hủy do bạn đổi bài mới.",
+          colorText: Colors.white,
+          backgroundColor: const Color(0xFF1C2E24),
+          duration: const Duration(seconds: 2),
+        );
+      }
+
       bool isPlaylistChanged = false;
 
       if (newQueue != null && newQueue.isNotEmpty) {
@@ -289,6 +396,16 @@ class PlayerController extends GetxController {
   void togglePlay() {
     if (isPlaying.value) {
       audioPlayer.pause();
+      // Nếu tự tắt nhạc mà đang hẹn giờ thời gian (không phải dạng hết bài), hủy luôn
+      if (isTimerActive.value && selectedSleepMinutes.value > 0) {
+        cancelSleepTimer();
+        Get.snackbar(
+          "Đã hủy hẹn giờ",
+          "Bộ đếm giờ được tắt vì bạn đã dừng nhạc.",
+          colorText: Colors.white,
+          backgroundColor: const Color(0xFF1C2E24),
+        );
+      }
     } else {
       audioPlayer.play();
     }
@@ -308,9 +425,23 @@ class PlayerController extends GetxController {
         currentShuffleIndex.value++;
         if (currentShuffleIndex.value >= shuffledIndices.length) {
           if (loopMode.value == LoopMode.all) {
-            shuffledIndices.shuffle();
+            // --- BẢN NÂNG CẤP CHỐNG TRÙNG BÀI ---
+            int lastPlayedIndex =
+                shuffledIndices.last; // Lưu lại bài vừa hát xong
+
+            shuffledIndices.shuffle(); // Trộn danh sách mới
+
+            // Nếu xui xẻo bài đầu tiên của list mới trùng với bài vừa hát xong
+            if (shuffledIndices.first == lastPlayedIndex) {
+              // Tráo đổi vị trí bài 1 và bài 2
+              int temp = shuffledIndices[0];
+              shuffledIndices[0] = shuffledIndices[1];
+              shuffledIndices[1] = temp;
+            }
+
             currentShuffleIndex.value = 0;
             nextIndex = shuffledIndices[currentShuffleIndex.value];
+            // ------------------------------------
           } else {
             currentShuffleIndex.value--; // Trả lại index cũ
             audioPlayer.pause();
