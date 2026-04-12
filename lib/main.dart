@@ -1,8 +1,12 @@
 import 'package:app_nghenhac/app_binding.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
+import 'package:app_nghenhac/src/view_models/home_controller.dart';
+import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:async';
 
 Future<void> main() async {
   // Đảm bảo Binding được khởi tạo trước
@@ -18,8 +22,101 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+// Chuyển MyApp thành StatefulWidget để quản lý lắng nghe Link
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    initDeepLinks();
+  }
+
+  Future<void> initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    // 1. Bắt link khi App đang tắt hoàn toàn (Cold Start)
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+    } catch (e) {
+      debugPrint("Lỗi lấy Initial Link: $e");
+    }
+
+    // 2. Bắt link khi App đang chạy ngầm (Background)
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      (uri) {
+        _handleDeepLink(uri);
+      },
+      onError: (err) {
+        debugPrint("Lỗi Stream Link: $err");
+      },
+    );
+  }
+
+  void _handleDeepLink(Uri uri) async {
+    debugPrint("Bắt được Link: $uri");
+
+    // Kiểm tra xem link có khớp định dạng appnghenhac://song không
+    if (uri.scheme == 'appnghenhac' && uri.host == 'song') {
+      final songId = uri.queryParameters['id'];
+
+      if (songId != null && songId.isNotEmpty) {
+        // QUAN TRỌNG: Đợi cho đến khi SplashScreen chạy xong và các Controller đã được khởi tạo
+        while (!Get.isRegistered<HomeController>() ||
+            !Get.isRegistered<PlayerController>()) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+
+        final homeController = Get.find<HomeController>();
+        final playerController = Get.find<PlayerController>();
+
+        // Tìm bài hát trong danh sách (Thực tế bạn nên gọi API Get Song By Id ở đây)
+        final songIndex = homeController.songList.indexWhere(
+          (s) => s.id == songId,
+        );
+
+        if (songIndex != -1) {
+          final song = homeController.songList[songIndex];
+
+          // Ra lệnh phát nhạc
+          playerController.playSong(song, newQueue: homeController.songList);
+
+          // Hiện thông báo thành công
+          Get.snackbar(
+            "Đang phát",
+            "Đã mở bài hát từ liên kết chia sẻ!",
+            colorText: Colors.black,
+            backgroundColor: const Color(0xFF30e87a),
+            duration: const Duration(seconds: 3),
+          );
+        } else {
+          Get.snackbar(
+            "Lỗi",
+            "Không tìm thấy bài hát này trong hệ thống.",
+            colorText: Colors.white,
+            backgroundColor: Colors.redAccent,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +131,6 @@ class MyApp extends StatelessWidget {
       ),
       initialBinding: AppBinding(),
       home: const SplashScreen(),
-
       builder: (context, child) {
         return MediaQuery(
           // Đảm bảo text scale không phá vỡ giao diện
@@ -52,10 +148,8 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Gọi AuthController để check login ngay khi màn hình này hiện lên
     final AuthController authController = Get.put(AuthController());
 
-    // Check sau 2 giây cho có hiệu ứng chờ
     Future.delayed(const Duration(seconds: 2), () {
       authController.checkLoginStatus();
     });

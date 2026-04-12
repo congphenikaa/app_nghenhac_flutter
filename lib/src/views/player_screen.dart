@@ -1,18 +1,348 @@
+import 'dart:io';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
-import 'package:app_nghenhac/src/view_models/home_controller.dart';
 import 'package:app_nghenhac/src/view_models/library_controller.dart';
+import 'package:app_nghenhac/src/view_models/home_controller.dart';
 import 'package:app_nghenhac/src/views/album_detail_screen.dart';
 import 'package:app_nghenhac/src/views/artist_detail_screen.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
-import '../view_models/player_controller.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:screenshot/screenshot.dart';
+import '../view_models/player_controller.dart';
 
 class PlayerScreen extends StatelessWidget {
   const PlayerScreen({super.key});
+
+  // --- MENU CHIA SẺ CHUẨN SPOTIFY ---
+  void _showShareMenu(BuildContext context, PlayerController controller) {
+    final song = controller.currentSong.value;
+    if (song == null) return;
+
+    // QUAN TRỌNG: Thay domain dưới đây bằng URL Vercel của bạn
+    // Vì ta đặt file ở thư mục api, nên link sẽ có dạng /api/song
+    final String linkThucTe =
+        "https://web-trung-gian.vercel.app/?id=${song.id}";
+
+    Widget buildOption(
+      IconData icon,
+      String label,
+      Color bgColor,
+      Color iconColor,
+      VoidCallback onTap,
+    ) {
+      return GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: 80,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.only(top: 24, bottom: 32),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: song.imageUrl,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          song.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                        ),
+                        Text(
+                          song.artist,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.white24, height: 1),
+            const SizedBox(height: 24),
+
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. SAO CHÉP LIÊN KẾT
+                  buildOption(
+                    Icons.link,
+                    "Sao chép\nliên kết",
+                    Colors.white24,
+                    Colors.white,
+                    () {
+                      Get.back();
+                      Clipboard.setData(ClipboardData(text: linkThucTe));
+                      Get.snackbar(
+                        "Đã sao chép",
+                        "Đã sao chép liên kết vào khay nhớ tạm",
+                        colorText: Colors.white,
+                        backgroundColor: const Color(0xFF1C2E24),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 16),
+
+                  // 2. TẠO ẢNH SHARE LÊN STORY (Chức năng cũ, sinh ra ảnh 1080x1080)
+                  buildOption(
+                    Icons.camera_alt_outlined,
+                    "Thẻ\nbài hát",
+                    const Color(0xFF30e87a),
+                    Colors.black,
+                    () {
+                      Get.back();
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        _shareSongAndImage(context, controller, linkThucTe);
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 16),
+
+                  // 3. CHIA SẺ LINK VÀO TIN NHẮN (Zalo, FB) -> Bọn nó sẽ tự cào thẻ Meta sinh ra ảnh Cover!
+                  buildOption(
+                    Icons.more_horiz,
+                    "Khác",
+                    Colors.white24,
+                    Colors.white,
+                    () {
+                      Get.back();
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        // BỎ SHARE ẢNH ĐI, CHỈ SHARE LINK
+                        Share.share(
+                          linkThucTe,
+                          subject: 'Nghe bài hát ${song.title}',
+                        );
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- TÍNH NĂNG TẠO ẢNH SHARE LÊN STORY ---
+  void _shareSongAndImage(
+    BuildContext context,
+    PlayerController controller,
+    String linkThucTe,
+  ) async {
+    final song = controller.currentSong.value;
+    if (song == null) return;
+
+    Get.dialog(
+      const Center(child: CircularProgressIndicator(color: Color(0xFF30e87a))),
+      barrierDismissible: false,
+    );
+
+    try {
+      await precacheImage(CachedNetworkImageProvider(song.imageUrl), context);
+      final screenshotController = ScreenshotController();
+
+      final Widget shareWidget = MediaQuery(
+        data: const MediaQueryData(),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Container(
+            width: 1080,
+            height: 1080,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  controller.dominantColor.value,
+                  const Color(0xFF121212),
+                ],
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Container(
+                width: 1080,
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 80),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF30e87a),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.music_note,
+                              color: Colors.black,
+                              size: 40,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          const Text(
+                            "My Music",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 60),
+                    Container(
+                      width: 550,
+                      height: 550,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.7),
+                            blurRadius: 60,
+                            offset: const Offset(0, 30),
+                          ),
+                        ],
+                        image: DecorationImage(
+                          image: CachedNetworkImageProvider(song.imageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 60),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 80),
+                      child: Column(
+                        children: [
+                          Text(
+                            song.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 45,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 15),
+                          Text(
+                            song.artist,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 30,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final bytes = await screenshotController.captureFromWidget(
+        shareWidget,
+        delay: const Duration(milliseconds: 150),
+        context: context,
+      );
+
+      final directory = await getTemporaryDirectory();
+      final imagePath = await File(
+        '${directory.path}/share_${song.id}.png',
+      ).create();
+      await imagePath.writeAsBytes(bytes);
+
+      if (Get.isDialogOpen == true) Get.back();
+
+      // Sử dụng shareXFiles cho nút STORY
+      await Share.shareXFiles(
+        [XFile(imagePath.path)],
+        text:
+            '🎵 Mình đang nghe "${song.title}" của ${song.artist}!\n🔗 Nghe ngay tại: $linkThucTe',
+      );
+    } catch (e) {
+      if (Get.isDialogOpen == true) Get.back();
+      Get.snackbar(
+        "Lỗi",
+        "Không thể chia sẻ bài hát: $e",
+        colorText: Colors.white,
+      );
+    }
+  }
 
   // --- MENU THÊM VÀO PLAYLIST TỪ PLAYER ---
   void _showAddToPlaylistBottomSheet(
@@ -155,7 +485,7 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  // --- MENU TÙY CHỌN (3 CHẤM) CHUẨN SPOTIFY ---
+  // --- MENU TÙY CHỌN (3 CHẤM) ---
   void _showPlayerOptionsMenu(
     BuildContext context,
     PlayerController playerController,
@@ -175,7 +505,6 @@ class PlayerScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Thanh vuốt
             Container(
               width: 40,
               height: 4,
@@ -185,7 +514,6 @@ class PlayerScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Header: Ảnh và Thông tin bài hát
             Row(
               children: [
                 ClipRRect(
@@ -227,14 +555,12 @@ class PlayerScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Nút Chia sẻ ngay trên Header (Chuẩn Spotify)
+                // GẮN HÀM SHARE MENU MỚI VÀO HEADER TÙY CHỌN
                 IconButton(
                   icon: const Icon(Icons.share_outlined, color: Colors.white),
                   onPressed: () {
-                    Get.back();
-                    Share.share(
-                      '🎵 Mình đang nghe bài hát ${song.title} của ${song.artist}!\nThưởng thức ngay trên App Nghe Nhạc.',
-                    );
+                    Get.back(); // Đóng menu
+                    _showShareMenu(context, playerController);
                   },
                 ),
               ],
@@ -243,7 +569,6 @@ class PlayerScreen extends StatelessWidget {
             const Divider(color: Colors.grey, height: 1),
             const SizedBox(height: 10),
 
-            // 1. NÚT THÍCH BÀI HÁT
             Obx(() {
               bool isLiked = false;
               if (authController.currentUser.value != null) {
@@ -266,12 +591,10 @@ class PlayerScreen extends StatelessWidget {
                 ),
                 onTap: () {
                   authController.toggleLikeSong(song.id);
-                  // Không đóng menu để user thấy icon đổi màu
                 },
               );
             }),
 
-            // 2. NÚT THÊM VÀO PLAYLIST
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(
@@ -284,7 +607,7 @@ class PlayerScreen extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               onTap: () {
-                Get.back(); // Đóng menu Tùy chọn
+                Get.back();
                 Future.delayed(const Duration(milliseconds: 300), () {
                   _showAddToPlaylistBottomSheet(
                     context,
@@ -295,7 +618,6 @@ class PlayerScreen extends StatelessWidget {
               },
             ),
 
-            // 3. XEM NGHỆ SĨ (Chờ phát triển nối dữ liệu)
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(
@@ -310,14 +632,12 @@ class PlayerScreen extends StatelessWidget {
               onTap: () {
                 Get.back();
                 try {
-                  // Lấy HomeController để tìm thông tin Artist
                   final homeController = Get.find<HomeController>();
                   final artistIndex = homeController.artists.indexWhere(
                     (a) => a.name.toLowerCase() == song.artist.toLowerCase(),
                   );
 
                   if (artistIndex != -1) {
-                    // Nếu tìm thấy, chuyển sang màn hình ArtistDetailScreen
                     Get.to(
                       () => ArtistDetailScreen(
                         artist: homeController.artists[artistIndex],
@@ -332,10 +652,9 @@ class PlayerScreen extends StatelessWidget {
                     );
                   }
                 } catch (e) {
-                  // Đề phòng trường hợp HomeController chưa khởi tạo
                   Get.snackbar(
                     "Thông báo",
-                    "Dữ liệu nghệ sĩ chưa sẵn sàng, vui lòng thử lại sau.",
+                    "Dữ liệu nghệ sĩ chưa sẵn sàng.",
                     backgroundColor: Colors.grey[900],
                     colorText: Colors.white,
                   );
@@ -343,7 +662,6 @@ class PlayerScreen extends StatelessWidget {
               },
             ),
 
-            // 4. XEM ALBUM (Chờ phát triển nối dữ liệu)
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(
@@ -357,8 +675,6 @@ class PlayerScreen extends StatelessWidget {
               ),
               onTap: () {
                 Get.back();
-
-                // Kiểm tra xem bài hát có thuộc album nào không
                 if (song.album.isEmpty ||
                     song.album.toLowerCase() == "unknown album") {
                   Get.snackbar(
@@ -371,14 +687,12 @@ class PlayerScreen extends StatelessWidget {
                 }
 
                 try {
-                  // Lấy HomeController để tìm thông tin Album
                   final homeController = Get.find<HomeController>();
                   final albumIndex = homeController.albums.indexWhere(
                     (a) => a.title.toLowerCase() == song.album.toLowerCase(),
                   );
 
                   if (albumIndex != -1) {
-                    // Nếu tìm thấy, chuyển sang màn hình AlbumDetailScreen
                     Get.to(
                       () => AlbumDetailScreen(
                         album: homeController.albums[albumIndex],
@@ -395,7 +709,7 @@ class PlayerScreen extends StatelessWidget {
                 } catch (e) {
                   Get.snackbar(
                     "Thông báo",
-                    "Dữ liệu album chưa sẵn sàng, vui lòng thử lại sau.",
+                    "Dữ liệu album chưa sẵn sàng.",
                     backgroundColor: Colors.grey[900],
                     colorText: Colors.white,
                   );
@@ -416,7 +730,7 @@ class PlayerScreen extends StatelessWidget {
   ) {
     Get.bottomSheet(
       Container(
-        height: MediaQuery.of(context).size.height * 0.65, // Chiếm 65% màn hình
+        height: MediaQuery.of(context).size.height * 0.65,
         padding: const EdgeInsets.only(top: 16),
         decoration: BoxDecoration(
           color: Colors.grey[900],
@@ -444,9 +758,7 @@ class PlayerScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Expanded(
               child: Obx(() {
-                // Tự động load danh sách từ Getter mới viết bên Controller
                 final upcoming = controller.upcomingSongs;
-
                 if (upcoming.isEmpty) {
                   return const Center(
                     child: Text(
@@ -495,14 +807,12 @@ class PlayerScreen extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      // Hiển thị icon menu ở cuối giống list nhạc
                       trailing: const Icon(
                         Icons.drag_handle,
                         color: Colors.grey,
                       ),
                       onTap: () {
                         Get.back();
-                        // Chuyển thẳng tới bài hát đó trong Queue
                         controller.playSong(song);
                       },
                     );
@@ -517,9 +827,8 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  // MENU HẸN GIỜ
+  // --- MENU HẸN GIỜ ---
   void _showSleepTimerMenu(BuildContext context, PlayerController controller) {
-    // Hàm phụ giúp tạo các tuỳ chọn Hẹn Giờ để tái sử dụng code và dùng Obx
     Widget buildOption(String title, int minutes, IconData icon) {
       return Obx(() {
         final isSelected = controller.selectedSleepMinutes.value == minutes;
@@ -539,15 +848,9 @@ class PlayerScreen extends StatelessWidget {
               ? const Icon(Icons.check, color: const Color(0xFF30e87a))
               : null,
           onTap: () {
-            // 1. Cập nhật UI ngay lập tức để hiện dấu check màu xanh
             controller.selectedSleepMinutes.value = minutes;
-
-            // 2. Thêm delay 250ms để user kịp thấy hiệu ứng
             Future.delayed(const Duration(milliseconds: 250), () {
-              // 3. ĐÓNG BOTTOM SHEET TRƯỚC
               if (Get.isBottomSheetOpen == true) Get.back();
-
-              // 4. GỌI LOGIC TỪ CONTROLLER SAU CÙNG (Để Snackbar không đè lên Get.back)
               controller.setSleepTimer(minutes);
             });
           },
@@ -578,7 +881,6 @@ class PlayerScreen extends StatelessWidget {
             buildOption("15 Phút", 15, Icons.access_time),
             buildOption("30 Phút", 30, Icons.access_time),
             buildOption("1 Giờ", 60, Icons.access_time),
-            // Luôn hiển thị nút tắt hẹn giờ
             Obx(() {
               final isOff = controller.selectedSleepMinutes.value == -1;
               return ListTile(
@@ -591,15 +893,9 @@ class PlayerScreen extends StatelessWidget {
                     ? const Icon(Icons.check, color: Colors.redAccent)
                     : null,
                 onTap: () {
-                  // 1. Cập nhật UI ngay
                   controller.selectedSleepMinutes.value = -1;
-
-                  // 2. Chờ 250ms
                   Future.delayed(const Duration(milliseconds: 250), () {
-                    // 3. Đóng Menu trước
                     if (Get.isBottomSheetOpen == true) Get.back();
-
-                    // 4. Hủy giờ và hiển thị thông báo
                     controller.cancelSleepTimer();
                     Get.snackbar(
                       "Hẹn giờ",
@@ -617,7 +913,7 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  // MENU TỐC ĐỘ PHÁT
+  // --- MENU TỐC ĐỘ PHÁT ---
   void _showSpeedMenu(BuildContext context, PlayerController controller) {
     Get.bottomSheet(
       Container(
@@ -656,13 +952,10 @@ class PlayerScreen extends StatelessWidget {
                       ? const Icon(Icons.check, color: Color(0xFF30e87a))
                       : null,
                   onTap: () {
-                    controller.playbackSpeed.value =
-                        speed; // Đổi màu ngay lập tức
+                    controller.playbackSpeed.value = speed;
                     Future.delayed(const Duration(milliseconds: 250), () {
                       if (Get.isBottomSheetOpen == true) Get.back();
-                      controller.changeSpeed(
-                        speed,
-                      ); // Cập nhật tốc độ audio sau
+                      controller.changeSpeed(speed);
                     });
                   },
                 ),
@@ -682,16 +975,15 @@ class PlayerScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // TÍNH NĂNG 1: DYNAMIC BACKGROUND
       body: Obx(
         () => AnimatedContainer(
-          duration: const Duration(milliseconds: 800), // Hiệu ứng chuyển màu
+          duration: const Duration(milliseconds: 800),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                controller.dominantColor.value.withOpacity(0.8), // Màu nền động
+                controller.dominantColor.value.withOpacity(0.8),
                 Colors.black,
                 Colors.black,
               ],
@@ -748,14 +1040,14 @@ class PlayerScreen extends StatelessWidget {
 
                   const Spacer(),
 
-                  // TÍNH NĂNG 3: VUỐT CHUYỂN BÀI
+                  // VUỐT CHUYỂN BÀI
                   GestureDetector(
                     onHorizontalDragEnd: (details) {
                       if (details.primaryVelocity != null) {
                         if (details.primaryVelocity! > 0) {
-                          controller.previousSong(); // Vuốt sang phải
+                          controller.previousSong();
                         } else if (details.primaryVelocity! < 0) {
-                          controller.nextSong(); // Vuốt sang trái
+                          controller.nextSong();
                         }
                       }
                     },
@@ -944,7 +1236,7 @@ class PlayerScreen extends StatelessWidget {
 
                   const Spacer(),
 
-                  // TÍNH NĂNG 2 VÀ 4: HÀNG NÚT SPEED & TIMER
+                  // HÀNG NÚT SPEED & CHỨC NĂNG THÊM (SHARE, QUEUE, TIMER)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -974,23 +1266,16 @@ class PlayerScreen extends StatelessWidget {
 
                       Row(
                         children: [
-                          // --- NÚT CHIA SẺ (SHARE) ---
+                          // GẮN HÀM SHARE MENU MỚI
                           IconButton(
                             icon: const Icon(
                               Icons.share_outlined,
                               color: Colors.white70,
                               size: 22,
                             ),
-                            onPressed: () {
-                              final song = controller.currentSong.value;
-                              if (song != null) {
-                                Share.share(
-                                  '🎵 Mình đang nghe bài hát ${song.title} của ${song.artist}!\nThưởng thức ngay trên App Nghe Nhạc.',
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _showShareMenu(context, controller),
                           ),
-                          // --- NÚT DANH SÁCH CHỜ (QUEUE) ---
                           IconButton(
                             icon: const Icon(
                               Icons.queue_music,
@@ -1000,7 +1285,6 @@ class PlayerScreen extends StatelessWidget {
                             onPressed: () =>
                                 _showQueueBottomSheet(context, controller),
                           ),
-                          // NÚT HẸN GIỜ TẮT
                           Obx(
                             () => IconButton(
                               icon: Icon(

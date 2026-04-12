@@ -31,6 +31,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- BẮT ĐẦU CẤU HÌNH DEEP LINK ĐỂ MỞ APP -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- CHÚ Ý: Chỗ này phải khai báo là appnghenhac để hứng lệnh từ web, KHÔNG điền link vercel vào đây -->
+                <data android:scheme="appnghenhac" android:host="song" />
+            </intent-filter>
+            <!-- KẾT THÚC CẤU HÌNH DEEP LINK -->
         </activity>
         
         <!-- Don't delete the meta-data below.
