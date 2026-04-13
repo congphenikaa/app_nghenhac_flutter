@@ -1,7 +1,5 @@
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../core/constants/app_urls.dart';
 import '../data/repositories/song_repository.dart';
 
 class ChartController extends GetxController {

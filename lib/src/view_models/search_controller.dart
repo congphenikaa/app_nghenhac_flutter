@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:app_nghenhac/src/core/constants/app_urls.dart';
 import 'package:app_nghenhac/src/models/song_model.dart';
 import 'package:app_nghenhac/src/models/artist_model.dart';
 import 'package:app_nghenhac/src/models/album_model.dart';
 import 'package:app_nghenhac/src/models/category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import '../data/repositories/home_repository.dart';
 import '../data/repositories/song_repository.dart';
 

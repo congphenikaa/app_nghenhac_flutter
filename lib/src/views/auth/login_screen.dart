@@ -1,10 +1,10 @@
 import 'package:app_nghenhac/src/core/routes/app_pages.dart';
-import 'package:app_nghenhac/src/views/auth/register_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../view_models/auth_controller.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/social_login_button.dart';
+
 const Color kPrimaryColor = Color(0xFF30E87A); // Màu xanh neon
 const Color kBackgroundDark = Color(0xFF112117); // Nền đen xanh
 const Color kSurfaceDark = Color(0xFF1D2E24); // Nền input
@@ -283,9 +283,17 @@ class LoginScreen extends StatelessWidget {
                         onTap: () {},
                       ), // Google
                       const SizedBox(width: 20),
-                      SocialLoginButton(icon: Icons.apple, size: 30, onTap: () {}), // Apple
+                      SocialLoginButton(
+                        icon: Icons.apple,
+                        size: 30,
+                        onTap: () {},
+                      ), // Apple
                       const SizedBox(width: 20),
-                      SocialLoginButton(icon: Icons.facebook, size: 30, onTap: () {}), // Facebook
+                      SocialLoginButton(
+                        icon: Icons.facebook,
+                        size: 30,
+                        onTap: () {},
+                      ), // Facebook
                     ],
                   ),
 
@@ -305,5 +313,4 @@ class LoginScreen extends StatelessWidget {
       ),
     );
   }
-
 }

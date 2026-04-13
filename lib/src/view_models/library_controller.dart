@@ -1,11 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:app_nghenhac/src/core/constants/app_urls.dart';
 import 'package:app_nghenhac/src/models/playlist_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/playlist_repository.dart';
 
@@ -144,7 +141,10 @@ class LibraryController extends GetxController {
   // Thêm bài hát vào Playlist
   Future<void> addSongToPlaylist(String playlistId, String songId) async {
     try {
-      final response = await _playlistRepository.addSongToPlaylist(playlistId, songId);
+      final response = await _playlistRepository.addSongToPlaylist(
+        playlistId,
+        songId,
+      );
 
       final data = json.decode(response.body);
 
@@ -165,7 +165,10 @@ class LibraryController extends GetxController {
   //Xóa bài hát khỏi Playlist
   Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
     try {
-      final response = await _playlistRepository.removeSongFromPlaylist(playlistId, songId);
+      final response = await _playlistRepository.removeSongFromPlaylist(
+        playlistId,
+        songId,
+      );
 
       final data = json.decode(response.body);
 
