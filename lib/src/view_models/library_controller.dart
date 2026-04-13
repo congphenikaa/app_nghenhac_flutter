@@ -1,14 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:app_nghenhac/src/configs/app_urls.dart';
+import 'package:app_nghenhac/src/core/constants/app_urls.dart';
 import 'package:app_nghenhac/src/models/playlist_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../data/repositories/playlist_repository.dart';
 
 class LibraryController extends GetxController {
+  final PlaylistRepository _playlistRepository = PlaylistRepository();
   var myPlaylists = <PlaylistModel>[].obs;
   var isLoading = false.obs;
 
@@ -36,11 +38,7 @@ class LibraryController extends GetxController {
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(AppUrls.playlistUserList),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': userId}),
-      );
+      final response = await _playlistRepository.fetchMyPlaylists(userId);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -76,27 +74,13 @@ class LibraryController extends GetxController {
         return false;
       }
 
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse(AppUrls.playlistCreate),
+      final response = await _playlistRepository.createPlaylist(
+        name: name,
+        desc: desc.isEmpty ? 'Playlist cá nhân' : desc,
+        userId: userId,
+        imageFile: imageFile,
       );
-      request.fields['name'] = name;
-      request.fields['desc'] = desc.isEmpty ? 'Playlist cá nhân' : desc;
-      request.fields['userId'] = userId;
-
-      if (imageFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'image',
-            imageFile.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
-      }
-
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
-      var data = json.decode(responseData);
+      var data = json.decode(response.body);
 
       if (data['success'] == true) {
         Get.snackbar(
@@ -129,28 +113,13 @@ class LibraryController extends GetxController {
     try {
       isLoading.value = true;
 
-      // Đảm bảo có đường dẫn updatePlaylist trong AppUrls (ví dụ: AppUrls.playlistUpdate)
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${AppUrls.baseUrl}/api/playlist/update'),
+      final response = await _playlistRepository.updatePlaylist(
+        playlistId: playlistId,
+        name: name,
+        desc: desc,
+        imageFile: imageFile,
       );
-      request.fields['playlistId'] = playlistId;
-      request.fields['name'] = name;
-      request.fields['desc'] = desc;
-
-      if (imageFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'image',
-            imageFile.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
-      }
-
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
-      var data = json.decode(responseData);
+      var data = json.decode(response.body);
 
       if (data['success'] == true) {
         Get.snackbar(
@@ -175,11 +144,7 @@ class LibraryController extends GetxController {
   // Thêm bài hát vào Playlist
   Future<void> addSongToPlaylist(String playlistId, String songId) async {
     try {
-      final response = await http.post(
-        Uri.parse(AppUrls.playlistAddSong),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'playlistId': playlistId, 'songId': songId}),
-      );
+      final response = await _playlistRepository.addSongToPlaylist(playlistId, songId);
 
       final data = json.decode(response.body);
 
@@ -200,11 +165,7 @@ class LibraryController extends GetxController {
   //Xóa bài hát khỏi Playlist
   Future<bool> removeSongFromPlaylist(String playlistId, String songId) async {
     try {
-      final response = await http.post(
-        Uri.parse(AppUrls.playlistRemoveSong),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'playlistId': playlistId, 'songId': songId}),
-      );
+      final response = await _playlistRepository.removeSongFromPlaylist(playlistId, songId);
 
       final data = json.decode(response.body);
 
@@ -226,11 +187,7 @@ class LibraryController extends GetxController {
   // Xóa Playlist
   Future<void> removePlaylist(String playlistId) async {
     try {
-      final response = await http.post(
-        Uri.parse(AppUrls.playlistRemove),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'playlistId': playlistId}),
-      );
+      final response = await _playlistRepository.removePlaylist(playlistId);
 
       final data = json.decode(response.body);
 

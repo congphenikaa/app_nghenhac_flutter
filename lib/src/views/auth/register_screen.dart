@@ -1,9 +1,10 @@
-import 'package:app_nghenhac/src/views/auth/login_screen.dart';
+import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../view_models/auth_controller.dart';
+import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/social_login_button.dart';
 
-// 1. Định nghĩa bộ màu chuẩn theo file HTML
 const Color kPrimaryColor = Color(0xFF30E87A); // Màu xanh neon chủ đạo
 const Color kBackgroundDark = Color(0xFF112117); // Màu nền tối
 const Color kSurfaceDark = Color(0xFF1D2E24); // Màu nền của các ô input
@@ -118,7 +119,8 @@ class RegisterScreen extends StatelessWidget {
                         // Tab Đăng nhập (Inactive)
                         Expanded(
                           child: InkWell(
-                            onTap: () => Get.to(LoginScreen()), // Quay về Login
+                            onTap: () =>
+                                Get.toNamed(AppRoutes.LOGIN), // Quay về Login
                             borderRadius: BorderRadius.circular(25),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -164,17 +166,17 @@ class RegisterScreen extends StatelessWidget {
                   const SizedBox(height: 25),
 
                   // --- Input: Email ---
-                  _buildInputField(
+                  CustomTextField(
                     controller: emailController,
                     hintText: "Email",
-                    icon: Icons.mail_outline, //
+                    icon: Icons.mail_outline,
                   ),
 
                   const SizedBox(height: 15),
 
                   // --- Input: Mật khẩu ---
                   Obx(
-                    () => _buildInputField(
+                    () => CustomTextField(
                       controller: passController,
                       hintText: "Tạo mật khẩu",
                       icon: Icons.lock_outline,
@@ -188,7 +190,7 @@ class RegisterScreen extends StatelessWidget {
 
                   // --- Input: Xác nhận mật khẩu ---
                   Obx(
-                    () => _buildInputField(
+                    () => CustomTextField(
                       controller: confirmPassController,
                       hintText: "Xác nhận mật khẩu",
                       icon: Icons.lock_reset, //
@@ -306,11 +308,23 @@ class RegisterScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildSocialButton(Icons.g_mobiledata, size: 40),
+                      SocialLoginButton(
+                        icon: Icons.g_mobiledata,
+                        size: 40,
+                        onTap: () {},
+                      ),
                       const SizedBox(width: 20),
-                      _buildSocialButton(Icons.apple, size: 30),
+                      SocialLoginButton(
+                        icon: Icons.apple,
+                        size: 30,
+                        onTap: () {},
+                      ),
                       const SizedBox(width: 20),
-                      _buildSocialButton(Icons.facebook, size: 30),
+                      SocialLoginButton(
+                        icon: Icons.facebook,
+                        size: 30,
+                        onTap: () {},
+                      ),
                     ],
                   ),
 
@@ -330,65 +344,6 @@ class RegisterScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // Widget con: Input Field Custom theo Style HTML
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData icon,
-    bool isPassword = false,
-    bool isObscure = false,
-    VoidCallback? onToggleEye,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: kSurfaceDark, //
-        borderRadius: BorderRadius.circular(16), // Rounded-xl
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword ? isObscure : false,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: kTextSecondary),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    isObscure ? Icons.visibility_off : Icons.visibility,
-                    color: kTextSecondary,
-                  ),
-                  onPressed: onToggleEye,
-                )
-              : null,
-          hintText: hintText,
-          hintStyle: const TextStyle(color: kTextSecondary),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 20,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget con: Social Button
-  Widget _buildSocialButton(IconData icon, {double size = 24}) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: kSurfaceDark,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(50),
-        child: Icon(icon, color: Colors.white, size: size),
       ),
     );
   }

@@ -1,15 +1,13 @@
+import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../configs/app_urls.dart';
 import '../models/user_model.dart';
-import '../views/auth/login_screen.dart';
-import '../views/main_wrapper.dart';
+import '../data/repositories/auth_repository.dart';
 
 class AuthController extends GetxController {
+  final AuthRepository _authRepository = AuthRepository();
   var isLoading = false.obs;
 
   // Biến lưu trữ thông tin User hiện tại (Quan trọng)
@@ -25,9 +23,9 @@ class AuthController extends GetxController {
       // Quan trọng: Khi mở lại app, token còn nhưng currentUser = null
       // Nên ta phải fetch lại thông tin user từ server
       await fetchUserProfile(userId, token);
-      Get.offAll(() => const MainWrapper());
+      Get.offAllNamed(AppRoutes.MAIN);
     } else {
-      Get.offAll(() => const LoginScreen());
+      Get.offAllNamed(AppRoutes.LOGIN);
     }
   }
 
@@ -35,16 +33,7 @@ class AuthController extends GetxController {
   Future<void> fetchUserProfile(String userId, String token) async {
     try {
       // Gọi API lấy chi tiết user (cần backend hỗ trợ API này)
-      // Giả sử API là: GET /api/user/detail/{userId} hoặc query param
-      final url = Uri.parse('${AppUrls.userDetail}/$userId');
-
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Gửi token nếu backend yêu cầu
-        },
-      );
+      final response = await _authRepository.fetchUserProfile(userId, token);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -67,11 +56,7 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
 
-      final response = await http.post(
-        Uri.parse(AppUrls.login),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+      final response = await _authRepository.login(email, password);
 
       final data = jsonDecode(response.body);
 
@@ -100,7 +85,7 @@ class AuthController extends GetxController {
           }
         }
 
-        Get.offAll(() => const MainWrapper());
+        Get.offAllNamed(AppRoutes.MAIN);
         Get.snackbar("Thành công", "Chào mừng quay trở lại!");
       } else {
         Get.snackbar("Lỗi", data['message'] ?? "Đăng nhập thất bại");
@@ -118,16 +103,7 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
 
-      final response = await http.post(
-        Uri.parse(AppUrls.register),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': name,
-          'email': email,
-          'password': password,
-          'gender': 'other',
-        }),
-      );
+      final response = await _authRepository.register(name, email, password);
 
       final data = jsonDecode(response.body);
 
@@ -155,7 +131,7 @@ class AuthController extends GetxController {
           }
         }
 
-        Get.offAll(() => const MainWrapper());
+        Get.offAllNamed(AppRoutes.MAIN);
         Get.snackbar("Thành công", "Tạo tài khoản thành công!");
       } else {
         Get.snackbar(
@@ -180,7 +156,7 @@ class AuthController extends GetxController {
     // Xóa dữ liệu user trong bộ nhớ RAM
     currentUser.value = null;
 
-    Get.offAll(() => const LoginScreen());
+    Get.offAllNamed(AppRoutes.LOGIN);
   }
 
   // --- THÍCH / BỎ THÍCH BÀI HÁT ---
@@ -203,14 +179,7 @@ class AuthController extends GetxController {
 
     // 2. GỌI SERVER
     try {
-      final response = await http.post(
-        Uri.parse(AppUrls.toggleLike),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'songId': songId}),
-      );
+      final response = await _authRepository.toggleLikeSong(songId, token);
 
       if (response.statusCode != 200) {
         // Nếu lỗi, hoàn tác lại UI
@@ -245,13 +214,9 @@ class AuthController extends GetxController {
 
     // 2. GỌI SERVER
     try {
-      final response = await http.post(
-        Uri.parse(AppUrls.toggleFollow),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'artistId': artistId}),
+      final response = await _authRepository.toggleFollowArtist(
+        artistId,
+        token,
       );
 
       if (response.statusCode != 200) {
@@ -282,26 +247,12 @@ class AuthController extends GetxController {
 
       if (token == null) return false;
 
-      var request = http.MultipartRequest(
-        'PUT',
-        Uri.parse(AppUrls.updateProfile),
+      final response = await _authRepository.updateProfile(
+        name: name,
+        gender: gender,
+        imageFile: imageFile,
+        token: token,
       );
-      request.headers.addAll({'Authorization': 'Bearer $token'});
-
-      if (name != null && name.isNotEmpty) request.fields['username'] = name;
-      if (gender != null) request.fields['gender'] = gender;
-      if (imageFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'image',
-            imageFile.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
-      }
-
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {

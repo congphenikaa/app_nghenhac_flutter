@@ -1,7 +1,8 @@
-import 'package:app_nghenhac/app_binding.dart';
+import 'package:app_nghenhac/src/bindings/main_binding.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/home_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
+import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -16,7 +17,14 @@ Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
     androidNotificationChannelName: 'Audio playback',
-    androidNotificationOngoing: true,
+    androidNotificationOngoing: false,
+    // --- CẤU HÌNH GIAO DIỆN CHUẨN SPOTIFY THÊM VÀO ĐÂY ---
+    androidNotificationIcon: 'drawable/ic_music_note',
+    androidShowNotificationBadge:
+        true, // Hiện logo nhỏ xíu ở góc trái trên cùng
+    artDownscaleWidth:
+        300, // Ép thu nhỏ ảnh bìa để Android không bị lỗi giấu ảnh
+    artDownscaleHeight: 300,
   );
 
   runApp(const MyApp());
@@ -129,8 +137,9 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: Colors.black,
         useMaterial3: true,
       ),
-      initialBinding: AppBinding(),
-      home: const SplashScreen(),
+      initialBinding: MainBinding(),
+      initialRoute: AppRoutes.SPLASH,
+      getPages: AppPages.pages,
       builder: (context, child) {
         return MediaQuery(
           // Đảm bảo text scale không phá vỡ giao diện

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:app_nghenhac/src/configs/app_urls.dart';
+import 'package:app_nghenhac/src/core/constants/app_urls.dart';
 import 'package:app_nghenhac/src/models/song_model.dart';
 import 'package:app_nghenhac/src/models/artist_model.dart';
 import 'package:app_nghenhac/src/models/album_model.dart';
@@ -8,8 +8,12 @@ import 'package:app_nghenhac/src/models/category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import '../data/repositories/home_repository.dart';
+import '../data/repositories/song_repository.dart';
 
 class SearchPageController extends GetxController {
+  final HomeRepository _homeRepository = HomeRepository();
+  final SongRepository _songRepository = SongRepository();
   // Trạng thái UI
   var isLoading = false.obs;
 
@@ -38,7 +42,7 @@ class SearchPageController extends GetxController {
   // Hàm load danh sách Category (Browse All)
   Future<void> fetchCategories() async {
     try {
-      final response = await http.get(Uri.parse(AppUrls.listCategory));
+      final response = await _homeRepository.fetchCategories();
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true) {
@@ -78,10 +82,7 @@ class SearchPageController extends GetxController {
       isLoading.value = true;
 
       // QUAN TRỌNG: Mã hóa tiếng Việt để không lỗi URL (Ví dụ: "Sơn Tùng" -> "S%C6%A1n...")
-      final encodedQuery = Uri.encodeComponent(query);
-      final url = '${AppUrls.searchSong}?query=$encodedQuery';
-
-      final response = await http.get(Uri.parse(url));
+      final response = await _songRepository.searchGlobal(query);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

@@ -1,9 +1,10 @@
+import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:app_nghenhac/src/views/auth/register_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../view_models/auth_controller.dart';
-
-// Định nghĩa màu sắc theo mẫu HTML
+import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/social_login_button.dart';
 const Color kPrimaryColor = Color(0xFF30E87A); // Màu xanh neon
 const Color kBackgroundDark = Color(0xFF112117); // Nền đen xanh
 const Color kSurfaceDark = Color(0xFF1D2E24); // Nền input
@@ -147,7 +148,7 @@ class LoginScreen extends StatelessWidget {
                         // Tab Đăng ký (Inactive)
                         Expanded(
                           child: InkWell(
-                            onTap: () => Get.to(() => const RegisterScreen()),
+                            onTap: () => Get.toNamed(AppRoutes.REGISTER),
                             borderRadius: BorderRadius.circular(25),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -170,7 +171,7 @@ class LoginScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // --- Input Email ---
-                  _buildInputField(
+                  CustomTextField(
                     controller: emailController,
                     icon: Icons.mail_outline,
                     hintText: "Email hoặc Tên đăng nhập",
@@ -180,7 +181,7 @@ class LoginScreen extends StatelessWidget {
 
                   // --- Input Password ---
                   Obx(
-                    () => _buildInputField(
+                    () => CustomTextField(
                       controller: passController,
                       icon: Icons.lock_outline,
                       hintText: "Mật khẩu",
@@ -276,14 +277,15 @@ class LoginScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildSocialButton(
-                        Icons.g_mobiledata,
+                      SocialLoginButton(
+                        icon: Icons.g_mobiledata,
                         size: 40,
+                        onTap: () {},
                       ), // Google
                       const SizedBox(width: 20),
-                      _buildSocialButton(Icons.apple, size: 30), // Apple
+                      SocialLoginButton(icon: Icons.apple, size: 30, onTap: () {}), // Apple
                       const SizedBox(width: 20),
-                      _buildSocialButton(Icons.facebook, size: 30), // Facebook
+                      SocialLoginButton(icon: Icons.facebook, size: 30, onTap: () {}), // Facebook
                     ],
                   ),
 
@@ -304,62 +306,4 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // Widget con: Input Field được custom riêng
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hintText,
-    bool isPassword = false,
-    bool isObscure = false,
-    VoidCallback? onToggleEye,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: kSurfaceDark, //
-        borderRadius: BorderRadius.circular(16), // Rounded-xl
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword ? isObscure : false,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: kTextSecondary), // Icon bên trái
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    isObscure ? Icons.visibility_off : Icons.visibility,
-                    color: kTextSecondary,
-                  ),
-                  onPressed: onToggleEye,
-                )
-              : null,
-          hintText: hintText,
-          hintStyle: const TextStyle(color: kTextSecondary),
-          border: InputBorder.none, // Xóa viền mặc định
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 20,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget con: Nút Social tròn
-  Widget _buildSocialButton(IconData icon, {double size = 24}) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: kSurfaceDark,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(50),
-        child: Icon(icon, color: Colors.white, size: size),
-      ),
-    );
-  }
 }

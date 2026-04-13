@@ -1,9 +1,11 @@
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../configs/app_urls.dart';
+import '../core/constants/app_urls.dart';
+import '../data/repositories/song_repository.dart';
 
 class ChartController extends GetxController {
+  final SongRepository _songRepository = SongRepository();
   var isLoading = true.obs;
   var topSongsData = <Map<String, dynamic>>[].obs;
 
@@ -16,8 +18,7 @@ class ChartController extends GetxController {
   Future<void> fetchTrendingTop() async {
     try {
       isLoading(true);
-      // Gọi đúng biến AppUrls.topTrending
-      final response = await http.get(Uri.parse(AppUrls.topTrending));
+      final response = await _songRepository.fetchTrendingTop();
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);

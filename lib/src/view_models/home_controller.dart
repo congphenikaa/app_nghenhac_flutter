@@ -4,11 +4,16 @@ import 'package:app_nghenhac/src/models/artist_model.dart';
 import 'package:app_nghenhac/src/models/category_model.dart';
 import 'package:app_nghenhac/src/models/playlist_model.dart';
 import 'package:get/get.dart';
-import 'package:app_nghenhac/src/configs/app_urls.dart';
+import 'package:app_nghenhac/src/core/constants/app_urls.dart';
 import 'package:app_nghenhac/src/models/song_model.dart';
 import 'package:http/http.dart' as http;
+import '../data/repositories/home_repository.dart';
+import '../data/repositories/song_repository.dart';
 
 class HomeController extends GetxController {
+  final HomeRepository _homeRepository = HomeRepository();
+  final SongRepository _songRepository = SongRepository();
+
   var isLoading = true.obs;
   var isSongLoading = false.obs; // Loading riêng cho list bài hát
 
@@ -43,7 +48,7 @@ class HomeController extends GetxController {
   // 2. Lấy danh sách Category
   Future<void> fetchCategories() async {
     try {
-      final response = await http.get(Uri.parse(AppUrls.listCategory));
+      final response = await _homeRepository.fetchCategories();
 
       if (response.statusCode == 200) {
         // Vì là Map, nên ta decode ra Map trước
@@ -100,7 +105,7 @@ class HomeController extends GetxController {
     try {
       isLoading(true);
 
-      final response = await http.get(Uri.parse(AppUrls.listSong));
+      final response = await _homeRepository.fetchSongs();
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -125,7 +130,7 @@ class HomeController extends GetxController {
 
   Future<void> fetchAlbums() async {
     try {
-      final response = await http.get(Uri.parse(AppUrls.listAlbum));
+      final response = await _homeRepository.fetchAlbums();
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true) {
@@ -140,7 +145,7 @@ class HomeController extends GetxController {
 
   Future<void> fetchArtists() async {
     try {
-      final response = await http.get(Uri.parse(AppUrls.listArtist));
+      final response = await _homeRepository.fetchArtists();
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true) {
@@ -159,10 +164,9 @@ class HomeController extends GetxController {
     try {
       isSongLoading.value = true;
       // Gọi API: /api/song/category/{id}
-      final url = '${AppUrls.songByCategory}/$categoryId';
-      print("Calling: $url");
+      print("Calling: category $categoryId");
 
-      final response = await http.get(Uri.parse(url));
+      final response = await _songRepository.fetchSongsByCategory(categoryId);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
