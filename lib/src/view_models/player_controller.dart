@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:app_nghenhac/src/core/constants/app_urls.dart';
-import 'package:app_nghenhac/src/services/image_color_service.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import '../services/image_color_service.dart';
 
 class PlayerController extends GetxController {
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -35,9 +35,9 @@ class PlayerController extends GetxController {
   var playlist = <SongModel>[].obs;
   var currentIndex = 0.obs;
 
-  // Chế độ phát
-  var isShuffleMode = false.obs;
-  var loopMode = LoopMode.off.obs;
+  // Chế độ phát (Lắng nghe từ Native)
+  var isShuffleMode = true.obs;
+  var loopMode = LoopMode.all.obs;
 
   // Kích hoạt UI render lại danh sách chờ khi Shuffle/Loop thay đổi
   var queueTrigger = 0.obs;
@@ -59,7 +59,18 @@ class PlayerController extends GetxController {
       isPlaying.value = state.playing;
     });
 
-    // 2. Lắng nghe sự thay đổi Bài hát (Để đồng bộ khi bấm Next/Prev từ màn hình khóa)
+    // 2. Lắng nghe chế độ Trộn bài (Chuẩn chuyên nghiệp: Lấy từ Native Engine)
+    audioPlayer.shuffleModeEnabledStream.listen((enabled) {
+      isShuffleMode.value = enabled;
+      queueTrigger.value++; // Cập nhật lại danh sách chờ trên UI
+    });
+
+    // 3. Lắng nghe chế độ Lặp bài (Chuẩn chuyên nghiệp)
+    audioPlayer.loopModeStream.listen((mode) {
+      loopMode.value = mode;
+    });
+
+    // 4. Lắng nghe sự thay đổi Bài hát (Để đồng bộ khi chuyển bài tự động/Bluetooth)
     audioPlayer.currentIndexStream.listen((index) {
       if (index != null && playlist.isNotEmpty && index < playlist.length) {
         // Logic Hẹn giờ: Nếu đổi bài mà đang bật "Tắt sau khi hết bài"
@@ -82,7 +93,7 @@ class PlayerController extends GetxController {
       }
     });
 
-    // 3. Lắng nghe sự thay đổi của Hàng đợi (để update danh sách UI)
+    // 5. Lắng nghe sự thay đổi của Hàng đợi
     audioPlayer.sequenceStateStream.listen((state) {
       queueTrigger.value++;
     });
@@ -96,16 +107,28 @@ class PlayerController extends GetxController {
     });
   }
 
+  // --- HÀM NÀY CHẠY SAU KHI ON_INIT HOÀN TẤT VÀ CONTROLLER ĐÃ SẴN SÀNG ---
+  @override
+  void onReady() {
+    super.onReady();
+    // Ép Native Engine bật Trộn bài và Lặp bài.
+    // Việc gọi ở đây đảm bảo giao diện lập tức nhận lại tín hiệu 'True' và sáng đèn Xanh!
+    audioPlayer.setShuffleModeEnabled(true);
+    audioPlayer.setLoopMode(LoopMode.all);
+  }
+
   // --- GETTER: Lấy danh sách chờ cực chuẩn từ Native AudioPlayer ---
   List<SongModel> get upcomingSongs {
-    queueTrigger.value; // Lắng nghe thay đổi
+    queueTrigger.value;
     if (playlist.isEmpty || audioPlayer.currentIndex == null) return [];
 
-    // effectiveIndices chứa danh sách Index đã được Shuffle của just_audio
+    // just_audio xử lý việc xáo trộn (shuffle) bên trong bằng cách tạo ra một mảng index ảo
+    // Chúng ta chỉ cần lấy mảng ảo này ra để hiển thị đúng thứ tự bài hát tiếp theo
     final indices =
         audioPlayer.effectiveIndices ??
         List.generate(playlist.length, (i) => i);
     final currentIndexInEffective = indices.indexOf(audioPlayer.currentIndex!);
+
     if (currentIndexInEffective == -1) return [];
 
     List<SongModel> upcoming = [];
@@ -115,7 +138,7 @@ class PlayerController extends GetxController {
     return upcoming;
   }
 
-  // --- HÀM PHÁT NHẠC MỚI (Dùng ConcatenatingAudioSource) ---
+  // --- HÀM PHÁT NHẠC ---
   Future<void> playSong(SongModel song, {List<SongModel>? newQueue}) async {
     try {
       bool isNewQueue = false;
@@ -145,13 +168,11 @@ class PlayerController extends GetxController {
         isNewQueue = true;
       }
 
-      // NẾU LÀ DANH SÁCH MỚI -> Xây dựng lại ConcatenatingAudioSource
       if (isNewQueue) {
         final audioSources = playlist
             .map(
               (s) => AudioSource.uri(
                 Uri.parse(s.audioUrl),
-                // THẺ NÀY GIÚP HIỂN THỊ ẢNH VÀ THÔNG TIN LÊN MÀN HÌNH KHÓA/THANH THÔNG BÁO
                 tag: MediaItem(
                   id: s.id,
                   album: s.album,
@@ -172,8 +193,12 @@ class PlayerController extends GetxController {
           initialIndex: index,
           initialPosition: Duration.zero,
         );
+
+        // Nếu đang bật trộn bài, yêu cầu engine xáo trộn danh sách mới này
+        if (isShuffleMode.value) {
+          await audioPlayer.shuffle();
+        }
       } else {
-        // NẾU LÀ DANH SÁCH CŨ -> Chỉ cần Seek đến vị trí index (Rất nhanh, không bị khựng)
         await audioPlayer.seek(Duration.zero, index: index);
       }
 
@@ -183,44 +208,58 @@ class PlayerController extends GetxController {
     }
   }
 
+  // --- ĐIỀU KHIỂN CHUẨN SPOTIFY ---
   void nextSong() {
+    // Nếu có bài tiếp theo trong hàng đợi (đã tính cả việc Shuffle)
     if (audioPlayer.hasNext) {
       audioPlayer.seekToNext();
     } else if (loopMode.value == LoopMode.all) {
-      audioPlayer.seek(Duration.zero, index: 0);
+      // Nếu hết danh sách MÀ ĐANG BẬT LOOP ALL -> Quay lại bài đầu tiên
+      audioPlayer.seek(
+        Duration.zero,
+        index: audioPlayer.effectiveIndices?.first ?? 0,
+      );
+    } else {
+      // Nếu hết bài và không bật lặp -> Dừng nhạc (Chuẩn Spotify)
+      audioPlayer.seek(Duration.zero);
+      audioPlayer.pause();
     }
   }
 
   void previousSong() {
+    // Nếu nhạc đã phát quá 5 giây -> Bấm Prev là hát lại từ đầu bài đó
     if (audioPlayer.position.inSeconds > 5) {
       audioPlayer.seek(Duration.zero);
-    } else if (audioPlayer.hasPrevious) {
+    }
+    // Nếu phát dưới 5 giây -> Lùi về bài trước đó
+    else if (audioPlayer.hasPrevious) {
       audioPlayer.seekToPrevious();
-    } else {
+    }
+    // Nếu đang ở bài đầu tiên -> Chỉ lùi về giây thứ 0
+    else {
       audioPlayer.seek(Duration.zero);
     }
   }
 
-  void toggleShuffle() async {
-    isShuffleMode.value = !isShuffleMode.value;
-    await audioPlayer.setShuffleModeEnabled(isShuffleMode.value);
-    if (isShuffleMode.value) {
-      await audioPlayer.shuffle();
+  // Cải tiến: Trộn lại (shuffle) để tạo một chuỗi ngẫu nhiên mới mỗi lần bật
+  Future<void> toggleShuffle() async {
+    final enable = !isShuffleMode.value;
+    if (enable) {
+      await audioPlayer.shuffle(); // Sinh ra thuật toán xáo trộn mới
     }
+    await audioPlayer.setShuffleModeEnabled(enable);
   }
 
-  void cycleLoopMode() async {
-    switch (loopMode.value) {
+  // Cải tiến: Giao phó việc chuyển trạng thái cho Native Engine
+  Future<void> cycleLoopMode() async {
+    switch (audioPlayer.loopMode) {
       case LoopMode.off:
-        loopMode.value = LoopMode.all;
         await audioPlayer.setLoopMode(LoopMode.all);
         break;
       case LoopMode.all:
-        loopMode.value = LoopMode.one;
         await audioPlayer.setLoopMode(LoopMode.one);
         break;
       case LoopMode.one:
-        loopMode.value = LoopMode.off;
         await audioPlayer.setLoopMode(LoopMode.off);
         break;
     }
@@ -238,7 +277,7 @@ class PlayerController extends GetxController {
     audioPlayer.seek(position);
   }
 
-  // --- CÁC HÀM TIỆN ÍCH VÀ API (Giữ nguyên) ---
+  // --- CÁC HÀM TIỆN ÍCH ---
   Future<void> updateDominantColor(String imageUrl) async {
     dominantColor.value = await ImageColorService.getDominantColor(imageUrl);
   }
