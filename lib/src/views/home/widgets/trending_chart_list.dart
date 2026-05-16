@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../view_models/chart_controller.dart';
 import '../../../view_models/player_controller.dart';
-import '../../../models/song_model.dart';
+import '../../../data/models/song_model.dart';
 
 class TrendingChartList extends StatelessWidget {
   final ChartController chartController;

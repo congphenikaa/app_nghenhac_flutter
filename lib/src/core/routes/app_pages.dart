@@ -1,3 +1,6 @@
+import 'package:app_nghenhac/src/bindings/artist_request_binding.dart';
+import 'package:app_nghenhac/src/views/profile/widgets/ArtistRequestStatusScreen.dart';
+import 'package:app_nghenhac/src/views/profile/widgets/artist_request_form_screen.dart';
 import 'package:get/get.dart';
 import '../../views/auth/login_screen.dart';
 import '../../views/auth/register_screen.dart';
@@ -12,37 +15,37 @@ import '../../views/category/category_detail_screen.dart';
 import '../../bindings/home_binding.dart';
 import '../../bindings/library_binding.dart';
 import '../../bindings/search_binding.dart';
-import '../../../../main.dart'; 
+import '../../../../main.dart';
 
 part 'app_routes.dart';
 
 class AppPages {
   static final pages = [
-    GetPage(
-      name: AppRoutes.SPLASH,
-      page: () => const SplashScreen(),
-    ),
-    GetPage(
-      name: AppRoutes.LOGIN,
-      page: () => const LoginScreen(),
-    ),
-    GetPage(
-      name: AppRoutes.REGISTER,
-      page: () => const RegisterScreen(),
-    ),
+    GetPage(name: AppRoutes.SPLASH, page: () => const SplashScreen()),
+    GetPage(name: AppRoutes.LOGIN, page: () => const LoginScreen()),
+    GetPage(name: AppRoutes.REGISTER, page: () => const RegisterScreen()),
     GetPage(
       name: AppRoutes.MAIN,
       page: () => const MainWrapper(),
-      bindings: [
-        HomeBinding(),
-        LibraryBinding(),
-        SearchBinding(),
-      ],
+      bindings: [HomeBinding(), LibraryBinding(), SearchBinding()],
     ),
     GetPage(
       name: AppRoutes.PROFILE,
       page: () => const ProfileScreen(),
+      binding: ArtistRequestBinding(),
     ),
+    GetPage(
+      name: AppRoutes.ARTIST_REQUEST_FORM,
+      page: () => const ArtistRequestFormScreen(),
+      binding: ArtistRequestBinding(),
+    ),
+
+    GetPage(
+      name: AppRoutes.ARTIST_REQUEST_STATUS,
+      page: () => const ArtistRequestStatusScreen(),
+      binding: ArtistRequestBinding(),
+    ),
+
     GetPage(
       name: AppRoutes.ALBUM_DETAIL,
       page: () => AlbumDetailScreen(album: Get.arguments),
@@ -63,7 +66,7 @@ class AppPages {
       name: AppRoutes.TOP_CHARTS,
       page: () => TopChartsScreen(
         chartController: Get.arguments['chartController'],
-        playerController: Get.arguments['playerController']
+        playerController: Get.arguments['playerController'],
       ),
     ),
     GetPage(

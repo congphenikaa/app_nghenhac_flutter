@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:app_nghenhac/src/core/constants/app_urls.dart';
-import 'package:app_nghenhac/src/models/category_model.dart';
-import 'package:app_nghenhac/src/models/song_model.dart';
+import 'package:app_nghenhac/src/data/models/category_model.dart';
+import 'package:app_nghenhac/src/data/models/song_model.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';

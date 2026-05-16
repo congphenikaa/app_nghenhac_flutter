@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../models/song_model.dart';
+import '../../data/models/song_model.dart';
 import '../../view_models/chart_controller.dart';
 import '../../view_models/player_controller.dart';
 import 'widgets/chart_header.dart';
@@ -45,23 +45,22 @@ class TopChartsScreen extends StatelessWidget {
                 );
               }
 
-              final displayList = chartController.topSongsData.take(20).toList();
+              final displayList = chartController.topSongsData
+                  .take(20)
+                  .toList();
               final topPlaylist = displayList
                   .map((e) => SongModel.fromJson(e['song']))
                   .toList();
 
               return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return ChartSongItem(
-                      index: index,
-                      itemData: displayList[index],
-                      topPlaylist: topPlaylist,
-                      playerController: playerController,
-                    );
-                  },
-                  childCount: displayList.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return ChartSongItem(
+                    index: index,
+                    itemData: displayList[index],
+                    topPlaylist: topPlaylist,
+                    playerController: playerController,
+                  );
+                }, childCount: displayList.length),
               );
             }),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),

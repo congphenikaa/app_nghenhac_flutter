@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import '../../models/song_model.dart';
+import '../../data/models/song_model.dart';
 
 import '../../view_models/auth_controller.dart';
 import '../../view_models/player_controller.dart';
@@ -20,6 +20,7 @@ import 'widgets/popular_artists_list.dart';
 import 'widgets/top_mixes_list.dart';
 import 'widgets/trending_chart_list.dart';
 import 'widgets/song_list_item.dart';
+
 class HomeScreen extends StatelessWidget {
   // 1. Tạo GlobalKey để điều khiển Drawer
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -52,7 +53,12 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               // 4. Truyền callback mở drawer vào Header
-              HomeHeader(authController: authController, onAvatarTap: () { _scaffoldKey.currentState?.openDrawer(); }),
+              HomeHeader(
+                authController: authController,
+                onAvatarTap: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+              ),
 
               const SizedBox(height: 24),
               CategoryFilterChips(controller: controller),
@@ -94,12 +100,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-
-
-
-
-
-
   // --- DASHBOARD BODY (GIỮ NGUYÊN) ---
   Widget _buildDashboardBody(
     HomeController controller,
@@ -124,7 +124,10 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            QuickAccessGrid(songs: controller.songList, playerController: playerController),
+            QuickAccessGrid(
+              songs: controller.songList,
+              playerController: playerController,
+            ),
 
             const SizedBox(height: 32),
             Padding(
@@ -144,7 +147,13 @@ class HomeScreen extends StatelessWidget {
                   GestureDetector(
                     onTap: () {
                       // Dùng GetX để chuyển sang màn hình mới
-                      Get.toNamed(AppRoutes.TOP_CHARTS, arguments: {'chartController': chartController, 'playerController': playerController});
+                      Get.toNamed(
+                        AppRoutes.TOP_CHARTS,
+                        arguments: {
+                          'chartController': chartController,
+                          'playerController': playerController,
+                        },
+                      );
                     },
                     child: const Text(
                       "Xem tất cả",
@@ -158,7 +167,10 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            TrendingChartList(chartController: chartController, playerController: playerController),
+            TrendingChartList(
+              chartController: chartController,
+              playerController: playerController,
+            ),
 
             const SizedBox(height: 32),
             _buildSectionTitle("New Releases"),
@@ -210,16 +222,6 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
-
-
-
-
-
-
-
-
-
 
   // --- SONG LIST ONLY (GIỮ NGUYÊN) ---
   Widget _buildSongListOnly(
@@ -407,8 +409,6 @@ class HomeScreen extends StatelessWidget {
     });
     ;
   }
-
-
 
   // --- SHOW SONG OPTIONS BOTTOM SHEET (MỚI) ---
   void _showSongOptionsBottomSheet(

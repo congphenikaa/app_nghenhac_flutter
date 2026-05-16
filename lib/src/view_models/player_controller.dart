@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
-import '../models/song_model.dart';
+import '../data/models/song_model.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import '../services/image_color_service.dart';
 

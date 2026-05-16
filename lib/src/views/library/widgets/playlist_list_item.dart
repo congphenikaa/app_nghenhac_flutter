@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/routes/app_pages.dart';
 import '../../../view_models/library_controller.dart';
-import '../../../models/playlist_model.dart';
+import '../../../data/models/playlist_model.dart';
 import '../add_edit_playlist_screen.dart';
 
 class PlaylistListItem extends StatelessWidget {
@@ -35,20 +35,14 @@ class PlaylistListItem extends StatelessWidget {
                     color: Colors.grey[900],
                     width: 60,
                     height: 60,
-                    child: const Icon(
-                      Icons.music_note,
-                      color: Colors.white54,
-                    ),
+                    child: const Icon(Icons.music_note, color: Colors.white54),
                   ),
                 )
               : Container(
                   color: Colors.grey[900],
                   width: 60,
                   height: 60,
-                  child: const Icon(
-                    Icons.music_note,
-                    color: Colors.white54,
-                  ),
+                  child: const Icon(Icons.music_note, color: Colors.white54),
                 ),
         ),
         title: Text(
@@ -91,9 +85,7 @@ class PlaylistListItem extends StatelessWidget {
             } else if (value == 'delete') {
               Get.defaultDialog(
                 title: "Xóa Playlist",
-                titleStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                titleStyle: const TextStyle(fontWeight: FontWeight.bold),
                 middleText: "Bạn có chắc chắn muốn xóa playlist này không?",
                 textConfirm: "Xóa",
                 textCancel: "Hủy",
@@ -115,10 +107,7 @@ class PlaylistListItem extends StatelessWidget {
                 children: [
                   Icon(Icons.edit, color: Colors.white, size: 20),
                   SizedBox(width: 12),
-                  Text(
-                    'Chỉnh sửa',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  Text('Chỉnh sửa', style: TextStyle(color: Colors.white)),
                 ],
               ),
             ),
@@ -126,16 +115,9 @@ class PlaylistListItem extends StatelessWidget {
               value: 'delete',
               child: Row(
                 children: [
-                  Icon(
-                    Icons.delete_outline,
-                    color: Colors.redAccent,
-                    size: 20,
-                  ),
+                  Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                   SizedBox(width: 12),
-                  Text(
-                    'Xóa',
-                    style: TextStyle(color: Colors.redAccent),
-                  ),
+                  Text('Xóa', style: TextStyle(color: Colors.redAccent)),
                 ],
               ),
             ),

@@ -2,12 +2,21 @@ import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
+import '../data/models/user_model.dart';
 import '../data/repositories/auth_repository.dart';
 
 class AuthController extends GetxController {
   final AuthRepository _authRepository = AuthRepository();
+
+  // Khởi tạo GoogleSignIn với Web Client ID
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId:
+        '374977006209-caohon1dvfgposucb7to4rjnqvb1fi23.apps.googleusercontent.com',
+  );
+
   var isLoading = false.obs;
 
   // Biến lưu trữ thông tin User hiện tại (Quan trọng)
@@ -142,6 +151,56 @@ class AuthController extends GetxController {
     } catch (e) {
       Get.snackbar("Lỗi", "Không thể kết nối server");
       print(e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ==================== GOOGLE LOGIN ====================
+  Future<void> loginWithGoogle({bool forceAccountPicker = false}) async {
+    try {
+      isLoading.value = true;
+
+      // Nếu muốn buộc chọn tài khoản khác → đăng xuất trước
+      if (forceAccountPicker) {
+        await _googleSignIn.signOut();
+        // await _googleSignIn.disconnect(); // Dùng cái này nếu muốn xóa hoàn toàn
+      }
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        isLoading.value = false;
+        return; // Người dùng hủy
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        Get.snackbar("Lỗi", "Không lấy được ID Token từ Google");
+        isLoading.value = false;
+        return;
+      }
+
+      final response = await _authRepository.loginWithGoogle(idToken);
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('userId', data['user']['_id']);
+
+        await fetchUserProfile(data['user']['_id'], data['token']);
+        Get.offAllNamed(AppRoutes.MAIN);
+        Get.snackbar("Thành công", "Đăng nhập Google thành công");
+      } else {
+        Get.snackbar("Lỗi", data['message'] ?? "Đăng nhập thất bại");
+      }
+    } catch (e) {
+      print("Google Login Error: $e");
+      Get.snackbar("Lỗi", "Không thể đăng nhập bằng Google");
     } finally {
       isLoading.value = false;
     }

@@ -36,6 +36,14 @@ class AuthRepository {
     );
   }
 
+  Future<http.Response> loginWithGoogle(String idToken) {
+    return http.post(
+      Uri.parse(AppUrls.googleLogin),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken}),
+    );
+  }
+
   Future<http.Response> toggleLikeSong(String songId, String? token) {
     return http.post(
       Uri.parse(AppUrls.toggleLike),
@@ -72,7 +80,7 @@ class AuthRepository {
 
     if (name != null && name.isNotEmpty) request.fields['username'] = name;
     if (gender != null) request.fields['gender'] = gender;
-    
+
     if (imageFile != null) {
       request.files.add(
         await http.MultipartFile.fromPath(

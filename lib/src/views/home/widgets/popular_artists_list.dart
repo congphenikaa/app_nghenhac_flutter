@@ -2,7 +2,7 @@ import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import '../../../models/artist_model.dart';
+import '../../../data/models/artist_model.dart';
 
 class PopularArtistsList extends StatelessWidget {
   final List<ArtistModel> artists;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/song_model.dart';
+import '../../../data/models/song_model.dart';
 import '../../../view_models/player_controller.dart';
 
 class PlaylistSongItem extends StatelessWidget {

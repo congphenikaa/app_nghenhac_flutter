@@ -2,15 +2,12 @@ import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import '../../../models/album_model.dart';
+import '../../../data/models/album_model.dart';
 
 class NewReleasesList extends StatelessWidget {
   final List<AlbumModel> albums;
 
-  const NewReleasesList({
-    super.key,
-    required this.albums,
-  });
+  const NewReleasesList({super.key, required this.albums});
 
   @override
   Widget build(BuildContext context) {

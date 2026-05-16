@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'package:app_nghenhac/src/models/album_model.dart';
-import 'package:app_nghenhac/src/models/artist_model.dart';
-import 'package:app_nghenhac/src/models/category_model.dart';
-import 'package:app_nghenhac/src/models/playlist_model.dart';
+import 'package:app_nghenhac/src/data/models/album_model.dart';
+import 'package:app_nghenhac/src/data/models/artist_model.dart';
+import 'package:app_nghenhac/src/data/models/category_model.dart';
+import 'package:app_nghenhac/src/data/models/playlist_model.dart';
 import 'package:get/get.dart';
-import 'package:app_nghenhac/src/models/song_model.dart';
+import 'package:app_nghenhac/src/data/models/song_model.dart';
 import '../data/repositories/home_repository.dart';
 import '../data/repositories/song_repository.dart';
 

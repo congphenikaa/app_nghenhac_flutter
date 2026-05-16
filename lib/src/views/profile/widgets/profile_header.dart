@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../models/user_model.dart';
+import '../../../data/models/user_model.dart';
 import '../../../view_models/library_controller.dart';
 import '../edit_profile_screen.dart';
 
@@ -100,10 +100,7 @@ class ProfileHeader extends StatelessWidget {
               "${libraryController.myPlaylists.length}",
               "Playlist",
             ),
-            _buildStatItem(
-              "${user.followedArtistIds.length}",
-              "Following",
-            ),
+            _buildStatItem("${user.followedArtistIds.length}", "Following"),
             _buildStatItem("0", "Followers"),
           ],
         ),

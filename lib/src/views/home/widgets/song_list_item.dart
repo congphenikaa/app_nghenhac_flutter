@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../models/song_model.dart';
+import '../../../data/models/song_model.dart';
 import '../../../view_models/player_controller.dart';
 import '../../../view_models/home_controller.dart';
 

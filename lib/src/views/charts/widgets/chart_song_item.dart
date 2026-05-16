@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../models/song_model.dart';
+import '../../../data/models/song_model.dart';
 import '../../../view_models/player_controller.dart';
 
 class ChartSongItem extends StatelessWidget {
@@ -29,10 +29,7 @@ class ChartSongItem extends StatelessWidget {
     if (rank == 3) rankColor = Colors.brown[300]!;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -73,10 +70,7 @@ class ChartSongItem extends StatelessWidget {
         '${song.artist} • $playCount lượt',
         style: const TextStyle(color: Colors.grey, fontSize: 13),
       ),
-      trailing: const Icon(
-        Icons.more_vert,
-        color: Colors.grey,
-      ),
+      trailing: const Icon(Icons.more_vert, color: Colors.grey),
       onTap: () {
         playerController.playSong(song, newQueue: topPlaylist);
       },

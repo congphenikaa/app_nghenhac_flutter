@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/routes/app_pages.dart';
-import '../../../models/artist_model.dart';
-import '../../../models/song_model.dart';
-import '../../../models/album_model.dart';
+import '../../../data/models/artist_model.dart';
+import '../../../data/models/song_model.dart';
+import '../../../data/models/album_model.dart';
 import '../../../view_models/player_controller.dart';
 import '../../../view_models/search_controller.dart';
 
@@ -135,11 +135,7 @@ class SearchResultsList extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.search_off,
-              color: Colors.grey,
-              size: 60,
-            ),
+            const Icon(Icons.search_off, color: Colors.grey, size: 60),
             const SizedBox(height: 16),
             Text(
               "Không tìm thấy kết quả nào cho '${controller.searchText.value}'",
@@ -151,10 +147,7 @@ class SearchResultsList extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       children: [
         if (controller.songResults.isNotEmpty) ...[
           _buildSectionTitle("Bài hát"),

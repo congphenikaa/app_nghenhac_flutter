@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:app_nghenhac/src/models/playlist_model.dart';
+import 'package:app_nghenhac/src/data/models/playlist_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';

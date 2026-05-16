@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:app_nghenhac/src/models/song_model.dart';
+import 'package:app_nghenhac/src/data/models/song_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';

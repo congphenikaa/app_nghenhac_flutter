@@ -1,7 +1,7 @@
 import 'package:app_nghenhac/src/core/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../models/album_model.dart';
+import '../../../data/models/album_model.dart';
 
 class TopMixesList extends StatelessWidget {
   final List<AlbumModel> albums;

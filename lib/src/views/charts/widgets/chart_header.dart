@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/song_model.dart';
+import '../../../data/models/song_model.dart';
 import '../../../view_models/chart_controller.dart';
 import '../../../view_models/player_controller.dart';
 
@@ -22,19 +22,13 @@ class ChartHeader extends StatelessWidget {
       flexibleSpace: FlexibleSpaceBar(
         title: const Text(
           "Top 20 Thịnh Hành",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
         background: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                const Color(0xFF30e87a).withOpacity(0.6),
-                Colors.black,
-              ],
+              colors: [const Color(0xFF30e87a).withOpacity(0.6), Colors.black],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -70,10 +64,7 @@ class ChartPlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-          vertical: 8.0,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [

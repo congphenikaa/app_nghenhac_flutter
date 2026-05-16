@@ -1,3 +1,6 @@
+import 'package:app_nghenhac/src/view_models/artist_request_controller.dart';
+import 'package:app_nghenhac/src/views/profile/widgets/ArtistRequestStatusScreen.dart';
+import 'package:app_nghenhac/src/views/profile/widgets/artist_request_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../library/library_screen.dart';
@@ -14,9 +17,12 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final AuthController authController = Get.find<AuthController>();
     final LibraryController libraryController = Get.put(LibraryController());
+    final ArtistRequestController requestController =
+        Get.find<ArtistRequestController>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       libraryController.fetchMyPlaylists();
+      requestController.checkAndRefreshStatus();
     });
 
     return Scaffold(
@@ -45,10 +51,7 @@ class ProfileScreen extends StatelessWidget {
         return SingleChildScrollView(
           child: Column(
             children: [
-              ProfileHeader(
-                user: user,
-                libraryController: libraryController,
-              ),
+              ProfileHeader(user: user, libraryController: libraryController),
               const SizedBox(height: 32),
               ProfileMenuItem(
                 icon: Icons.favorite,
@@ -70,6 +73,39 @@ class ProfileScreen extends StatelessWidget {
                   Get.to(() => const LibraryScreen());
                 },
               ),
+
+              Obx(() {
+                final user = authController.currentUser.value;
+                final request = requestController.myRequest.value;
+
+                // Nếu đã là Artist thì không hiển thị nút đề xuất
+                if (user != null && user.role == 'artist') {
+                  return const SizedBox.shrink(); // Ẩn nút
+                }
+
+                if (request != null && request.status == 'pending') {
+                  return ProfileMenuItem(
+                    icon: Icons.hourglass_top,
+                    iconColor: Colors.orange,
+                    bgIconColor: Colors.orange.withOpacity(0.2),
+                    title: "Đơn đang chờ duyệt",
+                    subtitle:
+                        "Đã gửi ngày ${request.createdAt.day}/${request.createdAt.month}",
+                    onTap: () =>
+                        Get.to(() => const ArtistRequestStatusScreen()),
+                  );
+                }
+
+                return ProfileMenuItem(
+                  icon: Icons.verified_user,
+                  iconColor: Colors.white,
+                  bgIconColor: const Color(0xFF1DB954),
+                  title: "Đề xuất trở thành Artist",
+                  subtitle: "Gửi đơn để trở thành nghệ sĩ",
+                  onTap: () => Get.to(() => const ArtistRequestFormScreen()),
+                );
+              }),
+
               ProfileMenuItem(
                 icon: Icons.settings,
                 iconColor: Colors.grey,

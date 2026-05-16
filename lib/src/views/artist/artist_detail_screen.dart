@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:app_nghenhac/src/core/constants/app_urls.dart';
-import 'package:app_nghenhac/src/models/artist_model.dart';
-import 'package:app_nghenhac/src/models/song_model.dart';
-import 'package:app_nghenhac/src/models/album_model.dart';
+import 'package:app_nghenhac/src/data/models/artist_model.dart';
+import 'package:app_nghenhac/src/data/models/song_model.dart';
+import 'package:app_nghenhac/src/data/models/album_model.dart';
 import 'package:app_nghenhac/src/view_models/auth_controller.dart';
 import 'package:app_nghenhac/src/view_models/player_controller.dart';
 import 'package:app_nghenhac/src/views/album/album_detail_screen.dart';
